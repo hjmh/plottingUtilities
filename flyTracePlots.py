@@ -132,3 +132,39 @@ def plotActiveSegments(activeFragments, frameRange, subplt, titleString, xPos, y
     plt.ylim([imageSizePx[1] / 2 - 500, imageSizePx[1] / 2 + 500])
 
     return
+
+
+def plotFlyVRtimeStp(plotStp, FOtime, titleString):
+    tstpfig = plt.figure(figsize=(10, 3))
+    gs = gridspec.GridSpec(1, 2, width_ratios=np.hstack((2, 1)))
+    tstpfig.suptitle(titleString, fontsize=14)
+    histRange = (0, 0.011)
+
+    ax = tstpfig.add_subplot(gs[0])
+
+    FOtimeStp = (FOtime[1:-1]-FOtime[0:-2]).astype('float')
+
+    ax.plot(FOtime[np.arange(0, len(FOtime)-1, plotStp)], FOtimeStp[np.arange(0, len(FOtime), plotStp)], '.', alpha=0.1)
+    ax.set_ylim(histRange)
+    ax.set_xlim((0, FOtime[-1]))
+    ax.set_xlabel('time [s]')
+    ax.set_ylabel('time step [1/s]')
+    myAxisTheme(ax)
+
+    ax = tstpfig.add_subplot(gs[1])
+    ax.hist(FOtimeStp, 50, histRange)
+    ax.set_xlabel('time step [1/s]')
+    ax.set_ylabel('count')
+    ax.set_title('mean time step = ' + str(round(np.mean(FOtimeStp*1000.0), 2)) + 'ms')
+    myAxisTheme(ax)
+
+    tstpfig.tight_layout()
+
+    return tstpfig
+
+
+def myAxisTheme(myax):
+    myax.get_xaxis().tick_bottom()
+    myax.get_yaxis().tick_left()
+    myax.spines['top'].set_visible(False)
+    myax.spines['right'].set_visible(False)
