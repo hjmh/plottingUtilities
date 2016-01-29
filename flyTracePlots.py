@@ -13,6 +13,7 @@ sns.set_style('ticks')
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.colors as colors
+from matplotlib import gridspec
 
 
 def plotBodyAngle(ax, x, y, angle, markerColor, alphaVal, arrowScale):
