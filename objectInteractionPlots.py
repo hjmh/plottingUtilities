@@ -94,6 +94,32 @@ def residencyWithHistograms_splitOnWalking(xPosMAall, yPosMAall, movingall, aren
     return hexplotfig
 
 
+def residencyWithHistograms(xPosMAall, yPosMAall, movingall, arenaRad, numBins, vTransTH, figureTitle):
+    histRange = (-arenaRad, arenaRad)
+
+    gs = gridspec.GridSpec(3, 2, width_ratios=[5, 1], height_ratios=[0.05, 1, 5])
+
+    hexplotfig = plt.figure(figsize=(15, 7.5))
+    sns.set_style('ticks')
+
+    ax1 = hexplotfig.add_subplot(gs[1, 0])
+    plotPositionHistogram(ax1, xPosMAall[movingall], numBins, histRange, 'grey', 0.4, 'vertical')
+
+    ax2 = hexplotfig.add_subplot(gs[2, 1])
+    plotPositionHistogram(ax2, yPosMAall[movingall], numBins, histRange, 'grey', 0.4, 'horizontal')
+
+    ax3 = hexplotfig.add_subplot(gs[2, 0])
+    plotResidencyInMiniarena(ax3, xPosMAall[movingall], yPosMAall[movingall], numBins, arenaRad, 'Greys',
+                             'Moving (transl. velocity > ' + str(vTransTH) + ' mm/s)')
+
+    hexplotfig.suptitle(figureTitle, fontsize=14)
+
+    hexplotfig.autofmt_xdate()
+    hexplotfig.tight_layout()
+
+    return hexplotfig
+
+
 def curvatureControlPlot(curv, xPos, yPos, sf, ef, rangeLimits, colormap):
     # Cap extremes of curvature to gain dynamic range at values around zero
     curvTH = 0.3

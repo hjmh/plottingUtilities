@@ -143,9 +143,10 @@ def plotFlyVRtimeStp(plotStp, FOtime, titleString):
 
     ax = tstpfig.add_subplot(gs[0])
 
-    FOtimeStp = (FOtime[1:-1]-FOtime[0:-2]).astype('float')
+    FOtimeStp = np.hstack((0, (FOtime[1:-1]-FOtime[0:-2]))).astype('float')
 
-    ax.plot(FOtime[np.arange(0, len(FOtime)-1, plotStp)], FOtimeStp[np.arange(0, len(FOtime), plotStp)], '.', alpha=0.1)
+    ax.plot(FOtime[np.arange(0, len(FOtime)-plotStp, plotStp)], FOtimeStp[np.arange(0, len(FOtime)-plotStp, plotStp)],
+            '.', alpha=0.1)
     ax.set_ylim(histRange)
     ax.set_xlim((0, FOtime[-1]))
     ax.set_xlabel('time [s]')
