@@ -99,7 +99,7 @@ def residencyWithHistograms(xPosMAall, yPosMAall, movingall, arenaRad, numBins, 
 
     gs = gridspec.GridSpec(3, 2, width_ratios=[5, 1], height_ratios=[0.05, 1, 5])
 
-    hexplotfig = plt.figure(figsize=(15, 7.5))
+    hexplotfig = plt.figure(figsize=(7, 7.5))
     sns.set_style('ticks')
 
     ax1 = hexplotfig.add_subplot(gs[1, 0])
