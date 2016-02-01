@@ -135,6 +135,23 @@ def plotActiveSegments(activeFragments, frameRange, subplt, titleString, xPos, y
     return
 
 
+def plotPolarTrace(ax, titleString, selectPts, selectTurnsR, selectTurnsL, objDist, gammaFull, vRot_ds, xlimRange):
+    ax.set_title(titleString)
+
+    sc = ax.scatter(objDist[selectPts], gammaFull[selectPts], s=40, c=vRot_ds[selectPts],
+                    marker='.', edgecolor='none', alpha=0.6, cmap='coolwarm', vmin=-2, vmax=2)
+    ax.plot(objDist[selectTurnsR], gammaFull[selectTurnsR], 'v', color='b', alpha=0.7)
+    ax.plot(objDist[selectTurnsL], gammaFull[selectTurnsL], '^', color='r', alpha=0.7)
+
+    plt.xlim(xlimRange)
+    plt.ylim(-.1-np.pi, np.pi+.1)
+    ax.set_xlabel('Distance from object [mm]')
+    ax.set_ylabel('relative heading angle [deg]')
+    # plt.colorbar(sc)
+    myAxisTheme(ax)
+    return ax
+
+
 def plotFlyVRtimeStp(plotStp, FOtime, titleString):
     tstpfig = plt.figure(figsize=(10, 3))
     gs = gridspec.GridSpec(1, 2, width_ratios=np.hstack((2, 1)))
