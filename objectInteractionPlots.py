@@ -119,6 +119,103 @@ def residencyWithHistograms(xPosMAall, yPosMAall, movingall, arenaRad, numBins, 
 
     return hexplotfig
 
+# Heading-object distance relationship .................................................................................
+
+def headingDistanceHistogram(headingDistHistSplt,objdistToPlot,gammaToPlot,distEdges, angleEdges):
+    n, xedges, yedges = np.histogram2d(objdistToPlot, gammaToPlot, bins=(distEdges, angleEdges))
+
+    X, Y = np.meshgrid(yedges, xedges)
+
+    ringArea = (np.pi*xedges[1:]**2) - (np.pi*xedges[:-1]**2)
+    ringArea2D = np.reshape(np.repeat(ringArea, (len(yedges)-1)), (len(xedges)-1, len(yedges)-1), order='C')
+
+    headingDistHistSplt.pcolormesh(Y, X, n/ringArea2D)
+    headingDistHistSplt.set_xlim(min(xedges), max(xedges))
+    headingDistHistSplt.set_ylim(min(yedges), max(yedges))
+    headingDistHistSplt.set_xlabel('radial distance from object [mm]')
+    headingDistHistSplt.set_ylabel('absolut angle relative to object [deg]')
+
+    return headingDistHistSplt
+
+
+def anglePerFlyHist(radHistSplt, flyIDs, gammaToPlot, flyIDallarray, angleEdges, angleBins):
+
+    import matplotlib.colors as colors
+
+    numFlies = len(flyIDs)
+    flyCMap = plt.cm.ScalarMappable(norm=colors.Normalize(vmin=0, vmax=numFlies), cmap='Accent')
+
+    for fly in range(numFlies):
+        n, edges = np.histogram(gammaToPlot[flyIDallarray == flyIDs[fly]],
+                                range=(min(angleEdges), max(angleEdges)), bins=angleBins, normed=True)
+        edgeCenteres = edges[:-1]+np.mean(np.diff(edges))/2
+
+        alphaVal = min((1+len(gammaToPlot[flyIDallarray == flyIDs[fly]]))/(10.0*60*10), 1)
+        radHistSplt.plot(n, edgeCenteres, color=flyCMap.to_rgba(fly), alpha=alphaVal)
+
+    radHistSplt.set_xlabel('count')
+    radHistSplt.set_ylim(min(angleEdges), max(angleEdges))
+
+    return radHistSplt
+
+
+def distancePerFlyHist(radHistSplt, flyIDs, objdistToPlot, flyIDallarray, distEdges, distBins):
+
+    import matplotlib.colors as colors
+
+    numFlies = len(flyIDs)
+    flyCMap = plt.cm.ScalarMappable(norm=colors.Normalize(vmin=0, vmax=numFlies), cmap='Accent')
+
+    for fly in range(numFlies):
+        n, edges = np.histogram(objdistToPlot[flyIDallarray == flyIDs[fly]],
+                                range=(min(distEdges), max(distEdges)), bins=distBins, normed=True)
+        edgeCenteres = edges[:-1]+np.mean(np.diff(edges))/2
+        ringArea = (np.pi*edges[1:]**2) - (np.pi*edges[:-1]**2)
+
+        alphaVal = min((1+len(objdistToPlot[flyIDallarray == flyIDs[fly]]))/(10.0*60*10), 1)
+
+        radHistSplt.plot(edgeCenteres, n/ringArea, color=flyCMap.to_rgba(fly), alpha=alphaVal)
+
+    radHistSplt.set_ylabel('count (normed to area)')
+    radHistSplt.set_xlim(min(distEdges), max(distEdges))
+    radHistSplt.legend(flyIDs, ncol=4, loc='upper center', bbox_to_anchor=(0.85, 1), fontsize=8)
+
+    return radHistSplt
+
+
+def radDistAngleCombiPlot(distBins, angleBins, maxDist, flyIDs, flyIDarray, objDistance, gamma):
+
+    distEdges = np.linspace(0, maxDist, distBins)
+    angleEdges = 180.0/np.pi*np.linspace(0, np.pi, angleBins)
+
+    gammaToPlot = 180.0/np.pi*abs(gamma)
+
+    objdistToPlot = objDistance
+
+    headingDistFig = plt.figure(figsize=(10, 8))
+    gs = gridspec.GridSpec(2, 2, height_ratios=(1, 3), width_ratios=(3, 1))
+
+    # Subplot1: per fly distance histogram
+    radHistSplt = headingDistFig.add_subplot(gs[0])
+    radHistSplt = distancePerFlyHist(radHistSplt, flyIDs, objdistToPlot, flyIDarray, distEdges, distBins)
+    myAxisTheme(radHistSplt)
+
+    # Subplot2:  2d distance/angle histogram
+    headingDistHistSplt = headingDistFig.add_subplot(gs[2])
+    headingDistHistSplt = headingDistanceHistogram(headingDistHistSplt, objdistToPlot, gammaToPlot, distEdges, angleEdges)
+    myAxisTheme(headingDistHistSplt)
+
+    # Subplot3: per fly angle histogram
+    radHistSplt = headingDistFig.add_subplot(gs[3])
+    radHistSplt = anglePerFlyHist(radHistSplt, flyIDs, gammaToPlot, flyIDarray, angleEdges, angleBins)
+    myAxisTheme(radHistSplt)
+
+    headingDistFig.tight_layout()
+
+    return headingDistFig
+
+
+# Curvature related plots ..............................................................................................
 
 def curvatureControlPlot(curv, xPos, yPos, sf, ef, rangeLimits, colormap):
     # Cap extremes of curvature to gain dynamic range at values around zero
@@ -166,7 +263,6 @@ def curvatureVsHeading_DistanceScatterplot(curvature, gammaFull, objDist):
     myAxisTheme(ax1)
 
     return
-
 
 
 def curvatureVsHeading_DistanceBoxplot(curvature, gammaFull, objDist, nGammaBins, nDistBins, arenaRad, titleString):
