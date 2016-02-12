@@ -121,7 +121,7 @@ def residencyWithHistograms(xPosMAall, yPosMAall, movingall, arenaRad, numBins, 
 
 # Heading-object distance relationship .................................................................................
 
-def headingDistanceHistogram(headingDistHistSplt,objdistToPlot,gammaToPlot,distEdges, angleEdges):
+def headingDistanceHistogram(headingDistHistSplt, objdistToPlot, gammaToPlot, distEdges, angleEdges):
     n, xedges, yedges = np.histogram2d(objdistToPlot, gammaToPlot, bins=(distEdges, angleEdges))
 
     X, Y = np.meshgrid(yedges, xedges)
