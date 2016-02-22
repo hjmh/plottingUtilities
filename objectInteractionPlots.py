@@ -150,8 +150,8 @@ def anglePerFlyHist(radHistSplt, flyIDs, gammaToPlot, flyIDallarray, angleEdges,
                                 range=(min(angleEdges), max(angleEdges)), bins=angleBins, normed=True)
         edgeCenteres = edges[:-1]+np.mean(np.diff(edges))/2
 
-        alphaVal = min((1+len(gammaToPlot[flyIDallarray == flyIDs[fly]]))/(10.0*60*10), 1)
-        radHistSplt.plot(n, edgeCenteres, color=flyCMap.to_rgba(fly), alpha=alphaVal)
+        # alphaVal = min((1+len(gammaToPlot[flyIDallarray == flyIDs[fly]]))/(10.0*60*10), 1)
+        radHistSplt.plot(n, edgeCenteres, color=flyCMap.to_rgba(fly))# , alpha=alphaVal)
 
     radHistSplt.set_xlabel('count')
     radHistSplt.set_ylim(min(angleEdges), max(angleEdges))
@@ -172,9 +172,9 @@ def distancePerFlyHist(radHistSplt, flyIDs, objdistToPlot, flyIDallarray, distEd
         edgeCenteres = edges[:-1]+np.mean(np.diff(edges))/2
         ringArea = (np.pi*edges[1:]**2) - (np.pi*edges[:-1]**2)
 
-        alphaVal = min((1+len(objdistToPlot[flyIDallarray == flyIDs[fly]]))/(10.0*60*10), 1)
+        # alphaVal = min((1+len(objdistToPlot[flyIDallarray == flyIDs[fly]]))/(10.0*60*10), 1)
 
-        radHistSplt.plot(edgeCenteres, n/ringArea, color=flyCMap.to_rgba(fly), alpha=alphaVal)
+        radHistSplt.plot(edgeCenteres, n/ringArea, color=flyCMap.to_rgba(fly))# ,alpha=alphaVal)
 
     radHistSplt.set_ylabel('count (normed to area)')
     radHistSplt.set_xlim(min(distEdges), max(distEdges))
