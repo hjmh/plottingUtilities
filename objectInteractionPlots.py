@@ -36,6 +36,8 @@ def modulationOfRuns(turnModfig, gammaFull, vRotFilt_ds, selectedRangeDist, sele
     return turnMod
 
 
+# 2D (cartesian) residency histograms ..................................................................................
+
 def plotResidencyInMiniarena(ax, xPosMA, yPosMA, numBins, arenaRad,colormap, titleString):
     ax.hexbin(xPosMA, yPosMA, gridsize=numBins, cmap=colormap)
     plt.xlabel('x'); plt.ylabel('y')
