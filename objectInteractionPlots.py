@@ -140,7 +140,7 @@ def headingDistanceHistogram(headingDistHistSplt, objdistToPlot, gammaToPlot, di
     return headingDistHistSplt
 
 
-def anglePerFlyHist(radHistSplt, flyIDs, gammaToPlot, flyIDallarray, angleEdges, angleBins):
+def anglePerFlyHist(radHistSplt, flyIDs, gammaToPlot, flyIDallarray, angleEdges, angleBins, timeTH):
 
     import matplotlib.colors as colors
 
@@ -148,6 +148,8 @@ def anglePerFlyHist(radHistSplt, flyIDs, gammaToPlot, flyIDallarray, angleEdges,
     flyCMap = plt.cm.ScalarMappable(norm=colors.Normalize(vmin=0, vmax=numFlies), cmap='Accent')
 
     for fly in range(numFlies):
+        if sum(flyIDallarray == flyIDs[fly]) < timeTH:
+            continue
         n, edges = np.histogram(gammaToPlot[flyIDallarray == flyIDs[fly]],
                                 range=(min(angleEdges), max(angleEdges)), bins=angleBins, normed=True)
         edgeCenteres = edges[:-1]+np.mean(np.diff(edges))/2
@@ -161,14 +163,18 @@ def anglePerFlyHist(radHistSplt, flyIDs, gammaToPlot, flyIDallarray, angleEdges,
     return radHistSplt
 
 
-def distancePerFlyHist(radHistSplt, flyIDs, objdistToPlot, flyIDallarray, distEdges, distBins):
+def distancePerFlyHist(radHistSplt, flyIDs, objdistToPlot, flyIDallarray, distEdges, distBins, timeTH):
 
     import matplotlib.colors as colors
 
     numFlies = len(flyIDs)
     flyCMap = plt.cm.ScalarMappable(norm=colors.Normalize(vmin=0, vmax=numFlies), cmap='Accent')
+    legendIDs = []
 
     for fly in range(numFlies):
+        if sum(flyIDallarray == flyIDs[fly]) < timeTH:
+            continue
+
         n, edges = np.histogram(objdistToPlot[flyIDallarray == flyIDs[fly]],
                                 range=(min(distEdges), max(distEdges)), bins=distBins, normed=True)
         edgeCenteres = edges[:-1]+np.mean(np.diff(edges))/2
@@ -177,29 +183,31 @@ def distancePerFlyHist(radHistSplt, flyIDs, objdistToPlot, flyIDallarray, distEd
         # alphaVal = min((1+len(objdistToPlot[flyIDallarray == flyIDs[fly]]))/(10.0*60*10), 1)
 
         radHistSplt.plot(edgeCenteres, n/ringArea, color=flyCMap.to_rgba(fly))# ,alpha=alphaVal)
+        legendIDs.append(flyIDs[fly])
 
     radHistSplt.set_ylabel('count (normed to area)')
     radHistSplt.set_xlim(min(distEdges), max(distEdges))
-    radHistSplt.legend(flyIDs, ncol=4, loc='upper center', bbox_to_anchor=(0.85, 1), fontsize=8)
+    radHistSplt.legend(legendIDs, ncol=4, loc='upper center', bbox_to_anchor=(0.85, 1), fontsize=8)
 
     return radHistSplt
 
 
-def radDistAngleCombiPlot(distBins, angleBins, maxDist, flyIDs, flyIDarray, objDistance, gamma):
+def radDistAngleCombiPlot(distBins, angleBins, minDist, maxDist, flyIDs, flyIDarray, objDistance, gamma):
 
-    distEdges = np.linspace(0, maxDist, distBins)
-    angleEdges = 180.0/np.pi*np.linspace(0, np.pi, angleBins)
+    distEdges = np.linspace(minDist, maxDist, distBins)
+    angleEdges = np.linspace(-np.pi, np.pi, angleBins)
+    timeTH = 0
 
-    gammaToPlot = 180.0/np.pi*abs(gamma)
+    gammaToPlot = gamma
 
     objdistToPlot = objDistance
 
-    headingDistFig = plt.figure(figsize=(10, 8))
+    headingDistFig = plt.figure(figsize=(9, 6))
     gs = gridspec.GridSpec(2, 2, height_ratios=(1, 3), width_ratios=(3, 1))
 
     # Subplot1: per fly distance histogram
     radHistSplt = headingDistFig.add_subplot(gs[0])
-    radHistSplt = distancePerFlyHist(radHistSplt, flyIDs, objdistToPlot, flyIDarray, distEdges, distBins)
+    radHistSplt = distancePerFlyHist(radHistSplt, flyIDs, objdistToPlot, flyIDarray, distEdges, distBins, timeTH)
     myAxisTheme(radHistSplt)
 
     # Subplot2:  2d distance/angle histogram
@@ -209,7 +217,42 @@ def radDistAngleCombiPlot(distBins, angleBins, maxDist, flyIDs, flyIDarray, objD
 
     # Subplot3: per fly angle histogram
     radHistSplt = headingDistFig.add_subplot(gs[3])
-    radHistSplt = anglePerFlyHist(radHistSplt, flyIDs, gammaToPlot, flyIDarray, angleEdges, angleBins)
+    radHistSplt = anglePerFlyHist(radHistSplt, flyIDs, gammaToPlot, flyIDarray, angleEdges, angleBins, timeTH)
+    myAxisTheme(radHistSplt)
+
+    headingDistFig.tight_layout()
+
+    return headingDistFig
+
+
+def radDistAngleCombiPlot_freeWalking(distBins, angleBins, minDist, maxDist, flyIDs, flyIDarrayIn, objDistance, gamma):
+
+    distEdges = np.linspace(minDist, maxDist, distBins)
+    angleEdges = np.linspace(-np.pi, np.pi, angleBins)
+    timeTH = 0.25*10*60
+
+    # filter for selected distance range
+    inArea = np.logical_and(objDistance>minDist,objDistance<maxDist)
+    gammaToPlot = gamma[inArea]
+    objdistToPlot = objDistance[inArea]
+    flyIDarray = flyIDarrayIn[inArea]
+
+    headingDistFig = plt.figure(figsize=(9, 7))
+    gs = gridspec.GridSpec(2, 2, height_ratios=(1, 3), width_ratios=(3, 1))
+
+    # Subplot1: per fly distance histogram
+    radHistSplt = headingDistFig.add_subplot(gs[0])
+    radHistSplt = distancePerFlyHist(radHistSplt, flyIDs, objdistToPlot, flyIDarray, distEdges, distBins, timeTH)
+    myAxisTheme(radHistSplt)
+
+    # Subplot2:  2d distance/angle histogram
+    headingDistHistSplt = headingDistFig.add_subplot(gs[2])
+    headingDistHistSplt = headingDistanceHistogram(headingDistHistSplt, objdistToPlot, gammaToPlot, distEdges, angleEdges)
+    myAxisTheme(headingDistHistSplt)
+
+    # Subplot3: per fly angle histogram
+    radHistSplt = headingDistFig.add_subplot(gs[3])
+    radHistSplt = anglePerFlyHist(radHistSplt, flyIDs, gammaToPlot, flyIDarray, angleEdges, angleBins, timeTH)
     myAxisTheme(radHistSplt)
 
     headingDistFig.tight_layout()
