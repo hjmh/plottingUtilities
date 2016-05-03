@@ -10,11 +10,11 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import seaborn as sns
 
-from sys import path
-
-# Import custom plotting functions
-path.insert(1, '/Users/hannah/Dropbox/code/plottingUtilities/')
-from plottingUtilities import myAxisTheme
+def myAxisTheme(myax):
+    myax.get_xaxis().tick_bottom()
+    myax.get_yaxis().tick_left()
+    myax.spines['top'].set_visible(False)
+    myax.spines['right'].set_visible(False)
 
 
 def modulationOfRuns(turnModfig, gammaFull, vRotFilt_ds, selectedRangeDist, selectedRangeDistTurn,objDistance):
@@ -121,8 +121,10 @@ def residencyWithHistograms(xPosMAall, yPosMAall, movingall, arenaRad, numBins, 
 
     return hexplotfig
 
+
 # Heading-object distance relationship .................................................................................
 
+# functions for heading vs. distance histogram ---------------
 def headingDistanceHistogram(headingDistHistSplt, objdistToPlot, gammaToPlot, distEdges, angleEdges):
     n, xedges, yedges = np.histogram2d(objdistToPlot, gammaToPlot, bins=(distEdges, angleEdges))
 
@@ -154,8 +156,7 @@ def anglePerFlyHist(radHistSplt, flyIDs, gammaToPlot, flyIDallarray, angleEdges,
                                 range=(min(angleEdges), max(angleEdges)), bins=angleBins, normed=True)
         edgeCenteres = edges[:-1]+np.mean(np.diff(edges))/2
 
-        # alphaVal = min((1+len(gammaToPlot[flyIDallarray == flyIDs[fly]]))/(10.0*60*10), 1)
-        radHistSplt.plot(n, edgeCenteres, color=flyCMap.to_rgba(fly))# , alpha=alphaVal)
+        radHistSplt.plot(n, edgeCenteres, color=flyCMap.to_rgba(fly))
 
     radHistSplt.set_xlabel('count')
     radHistSplt.set_ylim(min(angleEdges), max(angleEdges))
@@ -169,7 +170,6 @@ def distancePerFlyHist(radHistSplt, flyIDs, objdistToPlot, flyIDallarray, distEd
 
     numFlies = len(flyIDs)
     flyCMap = plt.cm.ScalarMappable(norm=colors.Normalize(vmin=0, vmax=numFlies), cmap='Accent')
-    legendIDs = []
 
     for fly in range(numFlies):
         if sum(flyIDallarray == flyIDs[fly]) < timeTH:
@@ -180,14 +180,13 @@ def distancePerFlyHist(radHistSplt, flyIDs, objdistToPlot, flyIDallarray, distEd
         edgeCenteres = edges[:-1]+np.mean(np.diff(edges))/2
         ringArea = (np.pi*edges[1:]**2) - (np.pi*edges[:-1]**2)
 
-        # alphaVal = min((1+len(objdistToPlot[flyIDallarray == flyIDs[fly]]))/(10.0*60*10), 1)
-
-        radHistSplt.plot(edgeCenteres, n/ringArea, color=flyCMap.to_rgba(fly))# ,alpha=alphaVal)
-        legendIDs.append(flyIDs[fly])
+        radHistSplt.plot(edgeCenteres, n/ringArea, color=flyCMap.to_rgba(fly))
 
     radHistSplt.set_ylabel('count (normed to area)')
     radHistSplt.set_xlim(min(distEdges), max(distEdges))
-    radHistSplt.legend(legendIDs, ncol=4, loc='upper center', bbox_to_anchor=(0.85, 1), fontsize=8)
+    flyIDsShort = []
+    [flyIDsShort.append(flyIDs[fly][-3:]) for fly in range(numFlies)]
+    radHistSplt.legend(flyIDsShort, ncol=4, loc='upper center', bbox_to_anchor=(0.85, 1), fontsize=8)
 
     return radHistSplt
 
@@ -232,7 +231,7 @@ def radDistAngleCombiPlot_freeWalking(distBins, angleBins, minDist, maxDist, fly
     timeTH = 0.25*10*60
 
     # filter for selected distance range
-    inArea = np.logical_and(objDistance>minDist,objDistance<maxDist)
+    inArea = np.logical_and(objDistance > minDist, objDistance < maxDist)
     gammaToPlot = gamma[inArea]
     objdistToPlot = objDistance[inArea]
     flyIDarray = flyIDarrayIn[inArea]
@@ -258,6 +257,159 @@ def radDistAngleCombiPlot_freeWalking(distBins, angleBins, minDist, maxDist, fly
     headingDistFig.tight_layout()
 
     return headingDistFig
+
+# functions related to heading vs. distance maps of steering parameter -----------------------
+
+def relPolarCoordAverageMap(relPolMeanPlt, distEdges, angleEdges, valuesToMap, objDistance, gamma, colorMap, useMean,
+                            maxValue, xlab, ylab):
+
+    # bin valuesToMap by objectDistance value
+    digitizedDist = np.digitize(objDistance, distEdges)
+
+    # bin valuesToMap by objectDistance value
+    digitizedAngle = np.digitize(gamma, angleEdges)
+
+    meanVals = 1.0*np.zeros((len(angleEdges), len(distEdges)))
+
+    for distBin in range(1, 1+len(distEdges)):
+        for angleBin in range(1, 1+len(angleEdges)):
+            sltPts = np.logical_and(digitizedDist == distBin, digitizedAngle == angleBin)
+            if sum(sltPts) > 0:
+                if useMean:
+                    meanVals[angleBin-1, distBin-1, ] = np.mean(valuesToMap[sltPts])
+                else:
+                    # use median
+                    meanVals[angleBin-1, distBin-1, ] = np.median(valuesToMap[sltPts])
+
+    pc = relPolMeanPlt.pcolormesh(distEdges, angleEdges, meanVals, cmap=colorMap, vmin=-maxValue, vmax=maxValue)
+    relPolMeanPlt.set_xlim(min(distEdges), max(distEdges))
+    relPolMeanPlt.set_ylim(min(angleEdges), max(angleEdges))
+    relPolMeanPlt.set_xlabel(xlab)
+    relPolMeanPlt.set_ylabel(ylab)
+
+    return relPolMeanPlt, meanVals, pc
+
+
+def movementSplitPolarAverageMaps(relPolMeanPltAll, relPolMeanPltAp, relPolMeanPltDep, cbax, titleString, distEdges,
+                                  angleEdges, app, dep, valuesToMap, objDistance, gamma, useMean, maxValue):
+
+    cMap = 'RdBu'
+    relPolMeanPltAp.set_title('Total')
+    relPolMeanPltAll, meanVals, pc = relPolarCoordAverageMap(relPolMeanPltAll, distEdges, angleEdges,valuesToMap,
+                                                             objDistance, gamma, cMap, useMean, maxValue,
+                                                             'radial distance from object [mm]',
+                                                             'heading angle relative to object [deg]')
+    myAxisTheme(relPolMeanPltAll)
+
+    relPolMeanPltAp.set_title('Approaches')
+    relPolMeanPltAp, meanVals, pc = relPolarCoordAverageMap(relPolMeanPltAp, distEdges, angleEdges, valuesToMap[app],
+                                                            objDistance[app], gamma[app], cMap, useMean, maxValue,
+                                                            'radial distance from object [mm]', '')
+    myAxisTheme(relPolMeanPltAp)
+
+    relPolMeanPltDep.set_title('Departures')
+    relPolMeanPltDep, meanVals, pc = relPolarCoordAverageMap(relPolMeanPltDep, distEdges, angleEdges, valuesToMap[dep],
+                                                             objDistance[dep], gamma[dep], cMap, useMean, maxValue,
+                                                             'radial distance from object [mm]', '')
+    cb = plt.colorbar(pc, cax=cbax)
+    cb.ax.set_ylabel(titleString, rotation=270, fontsize=12)
+    myAxisTheme(relPolMeanPltDep)
+
+    return relPolMeanPltAp, relPolMeanPltDep
+
+
+def make4ValuePolCoordPlot(relPolMeanFig, objDistanceall, gammaall, gammaFullall, vT, polarCurv, d_theta, time,
+                           distEdges, fullAngleEdges, maxVals):
+
+    d_objDist = np.hstack((0, np.diff(np.convolve(objDistanceall, np.ones((7,))/7, mode='same'))))
+
+    # Split data roughly into 'approaches' and 'departues'
+    app = d_objDist < 0
+    dep = d_objDist > 0
+    useMean = False
+
+    gs = gridspec.GridSpec(5, 4, width_ratios=[1, 1, 1, 0.05])
+
+    # 1) Translational velocity
+    titleString = 'Median translational velocity'
+    _ = movementSplitPolarAverageMaps(relPolMeanFig.add_subplot(gs[0]), relPolMeanFig.add_subplot(gs[1]),
+                                      relPolMeanFig.add_subplot(gs[2]), relPolMeanFig.add_subplot(gs[3]), titleString,
+                                      distEdges, fullAngleEdges, app, dep, vT, objDistanceall, gammaFullall,
+                                      useMean, maxVals[0])
+
+    # 2) Translational acceleration
+    d_vT = np.hstack((0, np.diff(np.convolve(vT, np.ones((5,))/5, mode='same'))/np.diff(time)))
+    d_vT = np.convolve(d_vT, np.ones((5,))/5, mode='same')
+    d_vT[abs(d_vT) > 2*np.std(abs(d_vT))] = np.sign(d_vT[abs(d_vT) > 2*np.std(abs(d_vT))])*2*np.std(abs(d_vT))
+
+    titleString = 'Median translational acceleration'
+    _ = movementSplitPolarAverageMaps(relPolMeanFig.add_subplot(gs[4]), relPolMeanFig.add_subplot(gs[5]),
+                                      relPolMeanFig.add_subplot(gs[6]), relPolMeanFig.add_subplot(gs[7]), titleString,
+                                      distEdges, fullAngleEdges, app, dep, d_vT, objDistanceall, gammaFullall,
+                                      useMean, maxVals[1])
+
+    # 3) Heading angle change
+    d_gamma = np.hstack((0, np.diff(gammaall)/np.diff(time)))
+    d_gamma = np.convolve(d_gamma, np.ones((7,))/7, mode='same')
+    titleString = 'Median heading velocity'
+    _ = movementSplitPolarAverageMaps(relPolMeanFig.add_subplot(gs[8]), relPolMeanFig.add_subplot(gs[9]),
+                                      relPolMeanFig.add_subplot(gs[10]), relPolMeanFig.add_subplot(gs[11]), titleString,
+                                      distEdges, fullAngleEdges, app, dep, d_gamma, objDistanceall, gammaFullall,
+                                      useMean, maxVals[2])
+
+    # 4) Corrected curvature
+    turnSign = np.sign(polarCurv)
+    turnSign[d_theta > 0] = np.sign(polarCurv[d_theta > 0])
+    turnSign[d_theta < 0] = -np.sign(polarCurv[d_theta < 0])
+    polarCurv = np.convolve(polarCurv, np.ones((5,))/5, mode='same')
+    polarCurv[abs(polarCurv) > 2] = 2*np.sign(polarCurv[abs(polarCurv) > 2])
+    curvmag = abs(np.convolve(polarCurv, np.ones((5,))/5, mode='same'))
+    corCurv = turnSign*curvmag
+
+    titleString = 'Median (corrected) curvature'
+    _ = movementSplitPolarAverageMaps(relPolMeanFig.add_subplot(gs[12]), relPolMeanFig.add_subplot(gs[13]),
+                                      relPolMeanFig.add_subplot(gs[14]), relPolMeanFig.add_subplot(gs[15]), titleString,
+                                      distEdges, fullAngleEdges, app, dep, corCurv, objDistanceall, gammaFullall,
+                                      useMean, maxVals[3])
+
+    # 5) Coverage map
+    titleString = 'Sampling coverage'
+    nAll, xedAll, yedAll = np.histogram2d(objDistanceall, gammaFullall, bins=(distEdges, fullAngleEdges))
+    nApr, xedApr, yedApr = np.histogram2d(objDistanceall[app], gammaFullall[app], bins=(distEdges, fullAngleEdges))
+    nDep, xedDep, yedDep = np.histogram2d(objDistanceall[dep], gammaFullall[dep], bins=(distEdges, fullAngleEdges))
+
+    allCov = relPolMeanFig.add_subplot(gs[16])
+    X, Y = np.meshgrid(yedAll, xedAll)
+    allCov.pcolormesh(Y, X, nAll, cmap='copper_r', vmin=0, vmax=np.max(nAll))
+    allCov.set_ylim(min(yedAll), max(yedAll))
+    allCov.set_xlim(min(xedAll), max(xedAll))
+    allCov.set_title('Approaches')
+    allCov.set_xlabel('radial distance from object [mm]')
+    allCov.set_ylabel('heading angle relative to object [deg]')
+    myAxisTheme(allCov)
+
+    aprCov = relPolMeanFig.add_subplot(gs[17])
+    X, Y = np.meshgrid(yedApr, xedApr)
+    aprCov.pcolormesh(Y, X, nApr, cmap='copper_r', vmin=0, vmax=np.max(nAll))
+    aprCov.set_ylim(min(yedApr), max(yedApr))
+    aprCov.set_xlim(min(xedApr), max(xedApr))
+    aprCov.set_title('Approaches')
+    aprCov.set_xlabel('radial distance from object [mm]')
+    myAxisTheme(aprCov)
+
+    depCov = relPolMeanFig.add_subplot(gs[18])
+    X, Y = np.meshgrid(yedDep, xedDep)
+    pc = depCov.pcolormesh(Y, X, nDep, cmap='copper_r', vmin=0, vmax=np.max(nAll))
+    depCov.set_ylim(min(yedDep), max(yedDep))
+    depCov.set_xlim(min(xedDep), max(xedDep))
+    depCov.set_title('Departures')
+    aprCov.set_xlabel('radial distance from object [mm]')
+    myAxisTheme(depCov)
+
+    cb = plt.colorbar(pc, cax=relPolMeanFig.add_subplot(gs[19]))
+    cb.ax.set_ylabel(titleString, rotation=270, fontsize=12)
+
+    return relPolMeanFig
 
 
 # Curvature related plots ..............................................................................................
