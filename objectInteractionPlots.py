@@ -122,6 +122,123 @@ def residencyWithHistograms(xPosMAall, yPosMAall, movingall, arenaRad, numBins, 
     return hexplotfig
 
 
+# Heading angle distribution plots (e.g. for stripe tracking) ..........................................................
+
+def plotHeadingComparison(FOAllFlies_df, flyIDs, sceneName, titleString, keyind_gam, keyind_gamful, keyind_mov, flyCMap,
+                          densityFlag, plotIQR):
+    legendlist = []
+    halfBins = 18
+    fullBins = 36
+
+    headingfig = plt.figure(figsize=(10, 8))
+
+    numFlies = len(flyIDs)
+    nhead_halfGamma = np.nan*np.ones((numFlies, halfBins, 2))
+    nhead_fullGamma = np.nan*np.ones((numFlies, fullBins, 2))
+
+    for fly in range(numFlies):
+        querystring = '(sceneName=="' + sceneName + '") & (flyID =="' + flyIDs[fly] + '")'
+
+        gamma = FOAllFlies_df.query(querystring).iloc[:, keyind_gam:keyind_gam+1].squeeze()
+        gammaFull = FOAllFlies_df.query(querystring).iloc[:, keyind_gamful:keyind_gamful+1].squeeze()
+
+        moving = FOAllFlies_df.query(querystring).iloc[:, keyind_mov:keyind_mov+1].squeeze()
+
+        if sum(moving) <= 0.2*len(moving):
+            print('fly '+str(flyIDs[fly])+' not moving')
+            print(100.0*sum(moving)/max(1, len(moving)))
+            continue
+
+        legendlist.append(flyIDs[fly])
+
+        gammaPlt = headingfig.add_subplot(221)
+        histRange = (0, np.pi)
+        nhead, edges = np.histogram(gamma[moving > 0], normed=densityFlag, density=densityFlag, range=histRange,
+                                    bins=halfBins)
+        gammaPlt.set_xlabel('rel. heading')
+        if densityFlag:
+            gammaPlt.set_ylabel('frequency (when moving)')
+            normFactor = nhead.sum()
+        else:
+            gammaPlt.set_ylabel('count (when moving)')
+            normFactor = 1.0
+        gammaPlt.plot(edges[:-1]+np.diff(edges)/2, nhead/normFactor, color=flyCMap.to_rgba(fly))
+        gammaPlt.set_xlim(histRange)
+        myAxisTheme(gammaPlt)
+
+        nhead_halfGamma[fly, :, 0] = nhead/normFactor
+        halfedges = edges[:-1]+np.diff(edges)/2
+
+        gammaFullPlt = headingfig.add_subplot(222)
+        histRange = (-np.pi, np.pi)
+        nhead, edges = np.histogram(gammaFull[moving > 0], normed=densityFlag, density=densityFlag, range=histRange,
+                                    bins=fullBins)
+        if densityFlag:
+            normFactor = nhead.sum()
+        else:
+            normFactor = 1.0
+        gammaFullPlt.plot(edges[:-1]+np.diff(edges)/2,nhead/normFactor,color=flyCMap.to_rgba(fly))
+        gammaFullPlt.set_xlim(histRange)
+        gammaFullPlt.set_xlabel('rel. heading (full)')
+        myAxisTheme(gammaFullPlt)
+
+        nhead_fullGamma[fly, :, 0] = nhead/normFactor
+        fulledges = edges[:-1]+np.diff(edges)/2
+
+        gammaPlt2 = headingfig.add_subplot(223)
+        histRange = (0, np.pi)
+        nhead, edges = np.histogram(gamma[moving == 0], normed=densityFlag, density=densityFlag, range=histRange,
+                                    bins=halfBins)
+        gammaPlt2.set_xlabel('rel. heading')
+        if densityFlag:
+            gammaPlt2.set_ylabel('frequency (when standing)')
+            normFactor = nhead.sum()
+        else:
+            gammaPlt2.set_ylabel('count (when standing)')
+            normFactor = 1.0
+        gammaPlt2.plot(edges[:-1]+np.diff(edges)/2, nhead/normFactor, color=flyCMap.to_rgba(fly), alpha=0.6)
+        gammaPlt2.set_xlim(histRange)
+        myAxisTheme(gammaPlt2)
+
+        nhead_halfGamma[fly, :, 1] = nhead/normFactor
+
+        gammaFullPlt2 = headingfig.add_subplot(224)
+        histRange = (-np.pi, np.pi)
+        nhead, edges = np.histogram(gammaFull[moving == 0], normed=densityFlag, density=densityFlag, range=histRange,
+                                    bins=fullBins)
+        gammaFullPlt2.plot(edges[:-1]+np.diff(edges)/2, nhead/normFactor, color=flyCMap.to_rgba(fly), alpha=0.6)
+        gammaFullPlt2.set_xlim(histRange)
+        gammaFullPlt2.set_xlabel('rel. heading (full)')
+        myAxisTheme(gammaFullPlt2)
+
+        nhead_fullGamma[fly, :, 1] = nhead/normFactor
+
+    headingfig.suptitle(titleString,fontsize=13)
+    gammaFullPlt2.legend(legendlist)
+    headingfig.tight_layout()
+
+    gammaPlt.plot(halfedges, np.nanmedian(nhead_halfGamma[:, :, 0], 0), color='k', linewidth=3)
+    gammaFullPlt.plot(fulledges, np.nanmedian(nhead_fullGamma[:, :, 0], 0), color='k', linewidth=3)
+
+    gammaPlt2.plot(halfedges, np.nanmedian(nhead_halfGamma[:, :, 1], 0), color='k', alpha=0.6, linewidth=3)
+    gammaFullPlt2.plot(fulledges, np.nanmedian(nhead_fullGamma[:, :, 1], 0), color='k', alpha=0.6, linewidth=3)
+
+    if(plotIQR):
+        [var1, var2] = np.nanpercentile(nhead_halfGamma[:, :, 0], [25, 75], axis=0)
+        gammaPlt.fill_between(halfedges, var1, var2, color='k', alpha=0.2)
+
+        [var1, var2] = np.nanpercentile(nhead_fullGamma[:, :, 0], [25, 75], axis=0)
+        gammaFullPlt.fill_between(fulledges, var1, var2, color='k', alpha=0.2)
+
+        [var1, var2] = np.nanpercentile(nhead_halfGamma[:, :, 1], [25, 75], axis=0)
+        gammaPlt2.fill_between(halfedges, var1, var2, color='k', alpha=0.2)
+
+        [var1, var2] = np.nanpercentile(nhead_fullGamma[:, :, 1], [25, 75], axis=0)
+        gammaFullPlt2.fill_between(fulledges, var1, var2, color='k', alpha=0.2)
+
+    return headingfig, nhead_fullGamma[:, :, 0]
+
+
 # Heading-object distance relationship .................................................................................
 
 # functions for heading vs. distance histogram ---------------
