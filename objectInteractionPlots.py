@@ -10,6 +10,10 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import seaborn as sns
 
+from sys import path
+path.insert(1, '/Users/hannah/Dropbox/code/trajectoryAnalysis/')
+from trajectoryDerivedParams import cartesian2polar
+
 def myAxisTheme(myax):
     myax.get_xaxis().tick_bottom()
     myax.get_yaxis().tick_left()
@@ -120,6 +124,98 @@ def residencyWithHistograms(xPosMAall, yPosMAall, movingall, arenaRad, numBins, 
     hexplotfig.tight_layout()
 
     return hexplotfig
+
+
+# 1D (radial) residency histograms ..................................................................................
+
+def oneDimResidencyWithVar_df(radResPlt, FODataframe, flyIDs, keyind_xPos, keyind_yPos, movementFilter, visState,
+                              numBins, histRange, lineAlpha, plotLog, varstyle, fill, condLegend):
+    numFlies = len(flyIDs)
+
+    # normalisation factor for cirle area rings
+    areaNormA = np.square(np.linspace(histRange[0], histRange[1], numBins))*np.pi
+    areaNorm = areaNormA[1:]-areaNormA[:-1]
+
+    # colormap for trials (visible object trials in colour, invisible object trials in grey shades)
+    numInvTrials = sum(['invisible' in visState[trial] for trial in range(len(visState))])
+    numVisTrials = len(visState)-numInvTrials
+
+    visTrialCMap = plt.cm.ScalarMappable(norm=colors.Normalize(vmin=-2, vmax=numVisTrials), cmap='Reds')
+    invTrialCMap = plt.cm.ScalarMappable(norm=colors.Normalize(vmin=-2, vmax=numInvTrials), cmap='Greys')
+    trialCMap = [visTrialCMap.to_rgba(visTrial) for visTrial in range(numVisTrials)]
+    [trialCMap.append(invTrialCMap.to_rgba(invTrial)) for invTrial in range(numInvTrials)]
+
+    legendhand = []
+
+    for trial, cond in enumerate(visState):
+        trialRadRes = np.zeros((numFlies, numBins-1))
+        for fly in range(numFlies):
+            querystring = '(trialtype=="' + cond + '")&(trial==' + str(trial+1) + ')&(' + movementFilter\
+                          + ')&(flyID=="' + flyIDs[fly]+'")'
+
+            xPosMA = np.asarray(FODataframe.query(querystring).iloc[:, keyind_xPos:keyind_xPos+1]).squeeze()
+            yPosMA = np.asarray(FODataframe.query(querystring).iloc[:, keyind_yPos:keyind_yPos+1]).squeeze()
+
+            # transform trajectory to polar coordinates
+            objDist, theta = cartesian2polar(xPosMA, yPosMA)
+
+            radresidency, edges = np.histogram(objDist, bins=np.linspace(histRange[0], histRange[1], numBins))
+            trialRadRes[fly, :] = radresidency/areaNorm
+
+            jitterRange = 0.2*np.diff(histRange)/numBins
+
+            if varstyle == 'dotplot':
+                if plotLog:
+                    toplot = np.log(radresidency/areaNorm)
+                else:
+                    toplot = radresidency/areaNorm
+
+                radResPlt.plot(edges[:-1]+np.diff(edges)/2.0+np.random.uniform(-jitterRange, jitterRange), toplot,
+                               color=trialCMap[trial], linestyle='none', marker='.', alpha=0.5)
+
+        if plotLog:
+            if varstyle == 'std':
+                toplot = np.log(np.nanmean(trialRadRes, 0))
+                var1 = np.log(np.nanmean(trialRadRes, 0) + np.nanstd(trialRadRes, 0))
+                var2 = np.log(np.nanmean(trialRadRes, 0) - np.nanstd(trialRadRes, 0))
+            elif varstyle == 'iqr':
+                toplot = np.log(np.nanmedian(trialRadRes,0))
+                [var1, var2] = np.log(np.nanpercentile(trialRadRes, [25, 75], axis=0))
+            else:
+                toplot = np.log(np.nanmean(trialRadRes, 0))
+
+        else:
+            if varstyle == 'std':
+                toplot = np.nanmean(trialRadRes, 0)
+                var1 = toplot + np.nanstd(trialRadRes, 0)
+                var2 = toplot - np.nanstd(trialRadRes, 0)
+            elif varstyle == 'iqr':
+                toplot = np.nanmedian(trialRadRes, 0)
+                [var1, var2] = np.nanpercentile(trialRadRes, [25, 75], axis=0)
+            else:
+                toplot = np.nanmean(trialRadRes,0)
+
+        if varstyle != 'dotplot':
+            lhand, = radResPlt.plot(edges[:-1]+np.diff(edges)/2.0, toplot, color=trialCMap[trial],
+                                    alpha=lineAlpha,linewidth=3)
+            radResPlt.plot(edges[:-1]+np.diff(edges)/2.0, var1, color=trialCMap[trial], alpha=lineAlpha, linewidth=1)
+            radResPlt.plot(edges[:-1]+np.diff(edges)/2.0, var2, color=trialCMap[trial], alpha=lineAlpha, linewidth=1)
+            if fill:
+                radResPlt.fill_between(edges[:-1]+np.diff(edges)/2.0, var1, var2, color=trialCMap[trial], alpha=0.2)
+        else:
+            lhand, = radResPlt.plot(edges[:-1]+np.diff(edges)/2.0, toplot, color=trialCMap[trial], alpha=lineAlpha,
+                                    linewidth=3)
+
+        legendhand.append(lhand)
+
+    plt.legend(legendhand, condLegend, loc='best', fontsize=12)
+    radResPlt.set_xlabel('object distance [mm]', fontsize=12)
+    if plotLog:
+        radResPlt.set_ylabel('log(area corrected residency [count/mm^2])', fontsize=12)
+    else:
+        radResPlt.set_ylabel('area corrected residency [count/mm^2]', fontsize=12)
+
+    return radResPlt
 
 
 # Heading angle distribution plots (e.g. for stripe tracking) ..........................................................
