@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
-from plottingUtilities import myAxisTheme
+from basicPlotting import myAxisTheme
 
 
 def plotHeadingDistFromTimeseries(figax, headingts, densityFlag, rangevals, binvals, flycol, xlab, ylab, alphaval):

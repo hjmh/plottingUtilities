@@ -6,13 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 
-
-def myAxisTheme(myax):
-    """ Sets generic axis theme """
-    myax.get_xaxis().tick_bottom()
-    myax.get_yaxis().tick_left()
-    myax.spines['top'].set_visible(False)
-    myax.spines['right'].set_visible(False)
+from basicPlotting import myAxisTheme
 
 
 def plotVeloTrace(timeVal, veloVal, gsLoc, ylimVal, xlimVal):

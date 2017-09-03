@@ -9,17 +9,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import seaborn as sns
-
+from os.path import sep
+import os.getcwd
 from sys import path
-path.insert(1, '/Users/hannah/Dropbox/code/trajectoryAnalysis/')
-from trajectoryDerivedParams import cartesian2polar
 
-def myAxisTheme(myax):
-    myax.get_xaxis().tick_bottom()
-    myax.get_yaxis().tick_left()
-    myax.spines['top'].set_visible(False)
-    myax.spines['right'].set_visible(False)
+# Set path to analysis code directory
+codeDir = sep.join(os.getcwd().split(sep)[:-2])
+path.insert(1, codeDir)
 
+from trajectoryAnalysis.trajectoryDerivedParams import cartesian2polar
+
+from basicPlotting import myAxisTheme
 
 def modulationOfRuns(turnModfig, gammaFull, vRotFilt_ds, selectedRangeDist, selectedRangeDistTurn,objDistance):
     # Directional modulation of runs (Gomez-Marin and Louis, 2014)

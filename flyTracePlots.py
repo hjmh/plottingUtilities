@@ -15,6 +15,8 @@ import matplotlib.patches as patches
 import matplotlib.colors as colors
 from matplotlib import gridspec
 
+from basicPlotting import myAxisTheme
+
 
 def plotBodyAngle(ax, x, y, angle, markerColor, alphaVal, arrowScale):
     try:
@@ -37,7 +39,7 @@ def plotBodyVector(ax, x, y, vector, markerColor, alphaVal, arrowScale):
 
 def plotPosInRange(ax1, ax2, frameRange, time, xPos, yPos, angle, currCmap, arrowScale, alphaValue, markerSize):
 
-    cNorm  = colors.Normalize(vmin=-0.5*len(frameRange), vmax=1*len(frameRange))
+    cNorm  = colors.Normalize(vmin=-0.3*len(frameRange), vmax=1*len(frameRange))
     scalarMap = plt.cm.ScalarMappable(norm=cNorm, cmap=currCmap)
 
     for ind, frame in enumerate(frameRange):
@@ -180,10 +182,3 @@ def plotFlyVRtimeStp(plotStp, FOtime, titleString):
     tstpfig.tight_layout()
 
     return tstpfig
-
-
-def myAxisTheme(myax):
-    myax.get_xaxis().tick_bottom()
-    myax.get_yaxis().tick_left()
-    myax.spines['top'].set_visible(False)
-    myax.spines['right'].set_visible(False)
