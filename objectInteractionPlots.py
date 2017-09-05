@@ -10,16 +10,20 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import seaborn as sns
 from os.path import sep
-import os.getcwd
+from os import getcwd
 from sys import path
 
 # Set path to analysis code directory
-codeDir = sep.join(os.getcwd().split(sep)[:-2])
+codeDir = sep.join(getcwd().split(sep)[:-2])
 path.insert(1, codeDir)
 
 from trajectoryAnalysis.trajectoryDerivedParams import cartesian2polar
 
 from basicPlotting import myAxisTheme
+
+
+
+# Modulation of runs ..........................................................................................
 
 def modulationOfRuns(turnModfig, gammaFull, vRotFilt_ds, selectedRangeDist, selectedRangeDistTurn,objDistance):
     # Directional modulation of runs (Gomez-Marin and Louis, 2014)
@@ -40,7 +44,7 @@ def modulationOfRuns(turnModfig, gammaFull, vRotFilt_ds, selectedRangeDist, sele
     return turnMod
 
 
-# 2D (cartesian) residency histograms ..................................................................................
+# 2D (cartesian) residency histograms ........................................................................
 
 def plotResidencyInMiniarena(ax, xPosMA, yPosMA, numBins, arenaRad,colormap, titleString):
     ax.hexbin(xPosMA, yPosMA, gridsize=numBins, cmap=colormap)
@@ -126,7 +130,7 @@ def residencyWithHistograms(xPosMAall, yPosMAall, movingall, arenaRad, numBins, 
     return hexplotfig
 
 
-# 1D (radial) residency histograms ..................................................................................
+# 1D (radial) residency histograms ...........................................................................
 
 def oneDimResidencyWithVar_df(radResPlt, FODataframe, flyIDs, keyind_xPos, keyind_yPos, movementFilter, visState,
                               numBins, histRange, lineAlpha, plotLog, varstyle, fill, condLegend):
@@ -217,8 +221,62 @@ def oneDimResidencyWithVar_df(radResPlt, FODataframe, flyIDs, keyind_xPos, keyin
 
     return radResPlt
 
+# Distributions -----------------------------------------------------------------------------------------------
 
-# Heading angle distribution plots (e.g. for stripe tracking) ..........................................................
+def lineHistogram(ax, histRange, yVals, xlab, ylab, lineCol, densityFlag, nBins):
+    n, edges = np.histogram(yVals, normed=densityFlag, density=densityFlag, range=histRange, bins=nBins)
+    edges = edges[:-1]+np.diff(edges)/2
+    ax.plot(edges, n, color=lineCol, linewidth=1.5)
+    
+    ax.set_xlim(histRange)
+    ax.set_xlabel(xlab)
+    ax.set_ylabel(ylab)
+    myAxisTheme(ax)
+    
+    return ax, n, edges
+
+# Velo distributions figure ...................................................................................
+
+def plotWalkingVelocityDistr(FOAllFlies_df, flyIDs, keyind_mov, keyind_vT, keyind_vR, flyCMap,
+                             histRangeVT, histRangeVR,numBins, numFlies):
+    walkingFig, axs = plt.subplots(2,2,figsize=(10,8))
+    verString = ['Normed ', '']
+    xString = ['', 'Time [s]']
+    
+    for ver, densityFlag in enumerate([True, False]):
+        
+        histDat = np.zeros((2,numFlies, numBins))
+        
+        for fly in range(numFlies):
+            querystring = '(flyID == "' + flyIDs[fly] + '")'
+            
+            flyMov = FOAllFlies_df.query(querystring).iloc[:,keyind_mov:keyind_mov+1].squeeze()
+            flyVT = FOAllFlies_df.query(querystring).iloc[:,keyind_vT:keyind_vT+1].squeeze()
+            flyVR = FOAllFlies_df.query(querystring).iloc[:,keyind_vR:keyind_vR+1].squeeze()
+            
+            # translational velocity
+            axs[ver,0], n, edgevt = lineHistogram(axs[ver,0], histRangeVT, flyVT[flyMov>0], xString[ver], verString[ver]+'Translational velocity [mm/s]', flyCMap.to_rgba(fly), densityFlag, numBins)
+                
+            histDat[0,fly,:] = n
+                                                  
+            # rotational velocity
+            axs[ver,1], n, edgevr = lineHistogram(axs[ver,1], histRangeVR, flyVR[flyMov>0], 'Time [s]', verString[ver]+'Rotational velocity [deg/s]', flyCMap.to_rgba(fly), densityFlag, numBins)
+            histDat[1,fly,:] = n
+                                                  
+            edges=[edgevt,edgevr]
+        
+        for ind in range(2):
+            axs[ver,ind].plot(edges[ind],np.nanmedian(histDat[ind,:,:],axis=0),color='k', linewidth=2)
+            
+            [var1, var2] = np.nanpercentile(histDat[ind,:,:], [25, 75], axis=0)
+            axs[ver,ind].fill_between(edges[ind], var1, var2, color='k', alpha=0.2)
+        
+            axs[ver,1].axvline(0,linestyle='dashed', color='grey', linewidth=2)
+            
+    return walkingFig
+
+
+# Heading angle distribution plots (e.g. for stripe tracking) .................................................
 
 def plotHeadingComparison(FOAllFlies_df, flyIDs, sceneName, titleString, keyind_gam, keyind_gamful, keyind_mov, flyCMap,
                           densityFlag, plotIQR):
