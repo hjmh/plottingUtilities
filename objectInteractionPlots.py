@@ -8,6 +8,7 @@ __author__ = 'Hannah Haberkern, hjmhaberkern@gmail.com'
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
+import matplotlib.colors as colors
 import seaborn as sns
 from os.path import sep
 from os import getcwd
@@ -18,9 +19,7 @@ codeDir = sep.join(getcwd().split(sep)[:-2])
 path.insert(1, codeDir)
 
 from trajectoryAnalysis.trajectoryDerivedParams import cartesian2polar
-
 from basicPlotting import myAxisTheme
-
 
 
 # Modulation of runs ..........................................................................................
@@ -154,8 +153,8 @@ def oneDimResidencyWithVar_df(radResPlt, FODataframe, flyIDs, keyind_xPos, keyin
     for trial, cond in enumerate(visState):
         trialRadRes = np.zeros((numFlies, numBins-1))
         for fly in range(numFlies):
-            querystring = '(trialtype=="' + cond + '")&(trial==' + str(trial+1) + ')&(' + movementFilter\
-                          + ')&(flyID=="' + flyIDs[fly]+'")'
+            querystring = '(trialtype=="' + cond + '") & (trial==' + str(trial+1) + ') & (' + movementFilter\
+                          + ') & (flyID=="' + flyIDs[fly]+'")'
 
             xPosMA = np.asarray(FODataframe.query(querystring).iloc[:, keyind_xPos:keyind_xPos+1]).squeeze()
             yPosMA = np.asarray(FODataframe.query(querystring).iloc[:, keyind_yPos:keyind_yPos+1]).squeeze()
@@ -225,7 +224,7 @@ def oneDimResidencyWithVar_df(radResPlt, FODataframe, flyIDs, keyind_xPos, keyin
 
 def lineHistogram(ax, histRange, yVals, xlab, ylab, lineCol, densityFlag, nBins):
     n, edges = np.histogram(yVals, normed=densityFlag, density=densityFlag, range=histRange, bins=nBins)
-    edges = edges[:-1]+np.diff(edges)/2
+    edges = edges[:-1]
     ax.plot(edges, n, color=lineCol, linewidth=1.5)
     
     ax.set_xlim(histRange)
@@ -235,17 +234,28 @@ def lineHistogram(ax, histRange, yVals, xlab, ylab, lineCol, densityFlag, nBins)
     
     return ax, n, edges
 
+
+def headingLineHist(ax, flyCol, edges, normedhead, curralpha, histRange, xlab):
+    shiftedges = edges[:-1]
+
+    ax.plot(shiftedges, normedhead, color=flyCol, alpha=curralpha)
+    ax.set_xlim(histRange)
+    ax.set_xlabel(xlab)
+    myAxisTheme(ax)
+
+    return shiftedges
+
 # Velo distributions figure ...................................................................................
 
-def plotWalkingVelocityDistr(FOAllFlies_df, flyIDs, keyind_mov, keyind_vT, keyind_vR, flyCMap,
-                             histRangeVT, histRangeVR,numBins, numFlies):
-    walkingFig, axs = plt.subplots(2,2,figsize=(10,8))
+def plotWalkingVelocityDistr(FOAllFlies_df, flyIDs, keyind_mov, keyind_vT, keyind_vR, flyCMap, histRangeVT,
+                             histRangeVR,numBins, numFlies):
+    walkingFig, axs = plt.subplots(2, 2, figsize=(10, 8))
     verString = ['Normed ', '']
     xString = ['', 'Time [s]']
     
     for ver, densityFlag in enumerate([True, False]):
         
-        histDat = np.zeros((2,numFlies, numBins))
+        histDat = np.zeros((2, numFlies, numBins))
         
         for fly in range(numFlies):
             querystring = '(flyID == "' + flyIDs[fly] + '")'
@@ -255,140 +265,134 @@ def plotWalkingVelocityDistr(FOAllFlies_df, flyIDs, keyind_mov, keyind_vT, keyin
             flyVR = FOAllFlies_df.query(querystring).iloc[:,keyind_vR:keyind_vR+1].squeeze()
             
             # translational velocity
-            axs[ver,0], n, edgevt = lineHistogram(axs[ver,0], histRangeVT, flyVT[flyMov>0], xString[ver], verString[ver]+'Translational velocity [mm/s]', flyCMap.to_rgba(fly), densityFlag, numBins)
+            axs[ver, 0], n, edgevt = lineHistogram(axs[ver, 0], histRangeVT, flyVT[flyMov > 0], xString[ver],
+                                                  verString[ver] + 'Translational velocity [mm/s]',
+                                                  flyCMap.to_rgba(fly), densityFlag, numBins)
                 
-            histDat[0,fly,:] = n
+            histDat[0, fly, :] = n
                                                   
             # rotational velocity
-            axs[ver,1], n, edgevr = lineHistogram(axs[ver,1], histRangeVR, flyVR[flyMov>0], 'Time [s]', verString[ver]+'Rotational velocity [deg/s]', flyCMap.to_rgba(fly), densityFlag, numBins)
-            histDat[1,fly,:] = n
+            axs[ver, 1], n, edgevr = lineHistogram(axs[ver, 1], histRangeVR, flyVR[flyMov > 0], 'Time [s]',
+                                                  verString[ver] + 'Rotational velocity [deg/s]',
+                                                  flyCMap.to_rgba(fly), densityFlag, numBins)
+            histDat[1, fly, :] = n
                                                   
-            edges=[edgevt,edgevr]
+            edges = [edgevt, edgevr]
         
         for ind in range(2):
-            axs[ver,ind].plot(edges[ind],np.nanmedian(histDat[ind,:,:],axis=0),color='k', linewidth=2)
+            axs[ver, ind].plot(edges[ind], np.nanmedian(histDat[ind, :, :], axis=0), color='k', linewidth=2)
             
-            [var1, var2] = np.nanpercentile(histDat[ind,:,:], [25, 75], axis=0)
-            axs[ver,ind].fill_between(edges[ind], var1, var2, color='k', alpha=0.2)
+            [var1, var2] = np.nanpercentile(histDat[ind, :, :], [25, 75], axis=0)
+            axs[ver, ind].fill_between(edges[ind], var1, var2, color='k', alpha=0.2)
         
-            axs[ver,1].axvline(0,linestyle='dashed', color='grey', linewidth=2)
+            axs[ver, 1].axvline(0, linestyle='dashed', color='grey', linewidth=2)
             
     return walkingFig
 
 
 # Heading angle distribution plots (e.g. for stripe tracking) .................................................
 
+def plotHeadingDistFromTimeseries(figax, headingts, densityFlag, rangevals, binvals, flycol, xlab, ylab, alphaval):
+
+    nhead, edges = np.histogram(headingts, normed=densityFlag, density=densityFlag, range=rangevals, bins=binvals)
+
+    if densityFlag:
+        normFactor = nhead.sum()
+    else:
+        normFactor = 1.0
+
+    figax.plot(edges[:-1]+np.diff(edges)/2, nhead/normFactor, color=flycol, alpha=alphaval)
+    figax.set_xlim(rangevals)
+    figax.set_xlabel(xlab)
+    figax.set_ylabel(ylab)
+    myAxisTheme(figax)
+
+    return figax, nhead/normFactor, edges[:-1]+np.diff(edges)/2
+
+
 def plotHeadingComparison(FOAllFlies_df, flyIDs, sceneName, titleString, keyind_gam, keyind_gamful, keyind_mov, flyCMap,
                           densityFlag, plotIQR):
-    legendlist = []
     halfBins = 18
     fullBins = 36
+    alphaval = [1, 0.6]
 
-    headingfig = plt.figure(figsize=(10, 8))
+    ystring = ['(moving)', '(standing)']
+
+    headingfig, axs = plt.subplots(2, 2, figsize=(10, 8))
 
     numFlies = len(flyIDs)
-    nhead_halfGamma = np.nan*np.ones((numFlies, halfBins, 2))
-    nhead_fullGamma = np.nan*np.ones((numFlies, fullBins, 2))
+    nhead_halfGamma = np.nan * np.ones((numFlies, halfBins, 2))
+    nhead_fullGamma = np.nan * np.ones((numFlies, fullBins, 2))
 
-    for fly in range(numFlies):
-        querystring = '(sceneName=="' + sceneName + '") & (flyID =="' + flyIDs[fly] + '")'
+    for movever in range(2):  # moving vs not moving
+        legendlist = []
 
-        gamma = FOAllFlies_df.query(querystring).iloc[:, keyind_gam:keyind_gam+1].squeeze()
-        gammaFull = FOAllFlies_df.query(querystring).iloc[:, keyind_gamful:keyind_gamful+1].squeeze()
+        for fly in range(numFlies):
+            flyCol = flyCMap.to_rgba(fly)
+            querystring = '(sceneName=="' + sceneName + '") & (flyID =="' + flyIDs[fly] + '")'
 
-        moving = FOAllFlies_df.query(querystring).iloc[:, keyind_mov:keyind_mov+1].squeeze()
+            moving = FOAllFlies_df.query(querystring).iloc[:, keyind_mov:keyind_mov + 1].squeeze()
+            gamma = FOAllFlies_df.query(querystring).iloc[:, keyind_gam:keyind_gam + 1].squeeze()
+            gammaFull = FOAllFlies_df.query(querystring).iloc[:, keyind_gamful:keyind_gamful + 1].squeeze()
 
-        if sum(moving) <= 0.2*len(moving):
-            print('fly '+str(flyIDs[fly])+' not moving')
-            print(100.0*sum(moving)/max(1, len(moving)))
-            continue
+            if sum(moving) <= 0.2 * len(moving):
+                print('fly ' + str(flyIDs[fly]) + ' not moving')
+                print(100.0 * sum(moving) / max(1, len(moving)))
+                continue
 
-        legendlist.append(flyIDs[fly])
+            legendlist.append(flyIDs[fly])
 
-        gammaPlt = headingfig.add_subplot(221)
-        histRange = (0, np.pi)
-        nhead, edges = np.histogram(gamma[moving > 0], normed=densityFlag, density=densityFlag, range=histRange,
-                                    bins=halfBins)
-        gammaPlt.set_xlabel('rel. heading')
-        if densityFlag:
-            gammaPlt.set_ylabel('frequency (when moving)')
-            normFactor = nhead.sum()
-        else:
-            gammaPlt.set_ylabel('count (when moving)')
-            normFactor = 1.0
-        gammaPlt.plot(edges[:-1]+np.diff(edges)/2, nhead/normFactor, color=flyCMap.to_rgba(fly))
-        gammaPlt.set_xlim(histRange)
-        myAxisTheme(gammaPlt)
+            if movever == 0:
+                gamma = gamma[moving > 0]
+                gammaFull = gammaFull[moving > 0]
+            else:
+                gamma = gamma[moving == 0]
+                gammaFull = gammaFull[moving == 0]
 
-        nhead_halfGamma[fly, :, 0] = nhead/normFactor
-        halfedges = edges[:-1]+np.diff(edges)/2
+            # Half gamma  -  gammaPlt = axs[0,plotver]
+            histRange = (0, np.pi)
+            nhead, edges = np.histogram(gamma, normed=densityFlag, density=densityFlag, range=histRange,
+                                        bins=halfBins)
 
-        gammaFullPlt = headingfig.add_subplot(222)
-        histRange = (-np.pi, np.pi)
-        nhead, edges = np.histogram(gammaFull[moving > 0], normed=densityFlag, density=densityFlag, range=histRange,
-                                    bins=fullBins)
-        if densityFlag:
-            normFactor = nhead.sum()
-        else:
-            normFactor = 1.0
-        gammaFullPlt.plot(edges[:-1]+np.diff(edges)/2,nhead/normFactor,color=flyCMap.to_rgba(fly))
-        gammaFullPlt.set_xlim(histRange)
-        gammaFullPlt.set_xlabel('rel. heading (full)')
-        myAxisTheme(gammaFullPlt)
+            if densityFlag:
+                axs[movever, 0].set_ylabel('frequency ' + ystring[movever])
+                normFactor = nhead.sum()
+            else:
+                axs[movever, 0].set_ylabel('count ' + ystring[movever])
+                normFactor = 1.0
 
-        nhead_fullGamma[fly, :, 0] = nhead/normFactor
-        fulledges = edges[:-1]+np.diff(edges)/2
+            halfedges = headingLineHist(axs[movever, 0], flyCol, edges, nhead / normFactor,
+                                        alphaval[movever], histRange, 'rel. heading')
 
-        gammaPlt2 = headingfig.add_subplot(223)
-        histRange = (0, np.pi)
-        nhead, edges = np.histogram(gamma[moving == 0], normed=densityFlag, density=densityFlag, range=histRange,
-                                    bins=halfBins)
-        gammaPlt2.set_xlabel('rel. heading')
-        if densityFlag:
-            gammaPlt2.set_ylabel('frequency (when standing)')
-            normFactor = nhead.sum()
-        else:
-            gammaPlt2.set_ylabel('count (when standing)')
-            normFactor = 1.0
-        gammaPlt2.plot(edges[:-1]+np.diff(edges)/2, nhead/normFactor, color=flyCMap.to_rgba(fly), alpha=0.6)
-        gammaPlt2.set_xlim(histRange)
-        myAxisTheme(gammaPlt2)
+            nhead_halfGamma[fly, :, movever] = nhead / normFactor
 
-        nhead_halfGamma[fly, :, 1] = nhead/normFactor
+            # Full gamma  -  gammaFullPlt = axs[0,1]
+            histRange = (-np.pi, np.pi)
+            nhead, edges = np.histogram(gammaFull, normed=densityFlag, density=densityFlag, range=histRange,
+                                        bins=fullBins)
+            if densityFlag:
+                normFactor = nhead.sum()
+            else:
+                normFactor = 1.0
 
-        gammaFullPlt2 = headingfig.add_subplot(224)
-        histRange = (-np.pi, np.pi)
-        nhead, edges = np.histogram(gammaFull[moving == 0], normed=densityFlag, density=densityFlag, range=histRange,
-                                    bins=fullBins)
-        gammaFullPlt2.plot(edges[:-1]+np.diff(edges)/2, nhead/normFactor, color=flyCMap.to_rgba(fly), alpha=0.6)
-        gammaFullPlt2.set_xlim(histRange)
-        gammaFullPlt2.set_xlabel('rel. heading (full)')
-        myAxisTheme(gammaFullPlt2)
+            fulledges = headingLineHist(axs[movever, 1], flyCol, edges, nhead / normFactor,
+                                        alphaval[movever], histRange, 'rel. heading (full)')
 
-        nhead_fullGamma[fly, :, 1] = nhead/normFactor
+            nhead_fullGamma[fly, :, movever] = nhead / normFactor
 
-    headingfig.suptitle(titleString,fontsize=13)
-    gammaFullPlt2.legend(legendlist)
+        axs[movever, 0].plot(halfedges, np.nanmedian(nhead_halfGamma[:, :, movever], 0), color='k', linewidth=3)
+        axs[movever, 1].plot(fulledges, np.nanmedian(nhead_fullGamma[:, :, movever], 0), color='k', linewidth=3)
+
+        if (plotIQR):
+            [var1, var2] = np.nanpercentile(nhead_halfGamma[:, :, movever], [25, 75], axis=0)
+            axs[movever, 0].fill_between(halfedges, var1, var2, color='k', alpha=0.2)
+
+            [var1, var2] = np.nanpercentile(nhead_fullGamma[:, :, movever], [25, 75], axis=0)
+            axs[movever, 1].fill_between(fulledges, var1, var2, color='k', alpha=0.2)
+
+    headingfig.suptitle(titleString, fontsize=13)
+    axs[movever, 1].legend(legendlist, ncol=4)
     headingfig.tight_layout()
-
-    gammaPlt.plot(halfedges, np.nanmedian(nhead_halfGamma[:, :, 0], 0), color='k', linewidth=3)
-    gammaFullPlt.plot(fulledges, np.nanmedian(nhead_fullGamma[:, :, 0], 0), color='k', linewidth=3)
-
-    gammaPlt2.plot(halfedges, np.nanmedian(nhead_halfGamma[:, :, 1], 0), color='k', alpha=0.6, linewidth=3)
-    gammaFullPlt2.plot(fulledges, np.nanmedian(nhead_fullGamma[:, :, 1], 0), color='k', alpha=0.6, linewidth=3)
-
-    if(plotIQR):
-        [var1, var2] = np.nanpercentile(nhead_halfGamma[:, :, 0], [25, 75], axis=0)
-        gammaPlt.fill_between(halfedges, var1, var2, color='k', alpha=0.2)
-
-        [var1, var2] = np.nanpercentile(nhead_fullGamma[:, :, 0], [25, 75], axis=0)
-        gammaFullPlt.fill_between(fulledges, var1, var2, color='k', alpha=0.2)
-
-        [var1, var2] = np.nanpercentile(nhead_halfGamma[:, :, 1], [25, 75], axis=0)
-        gammaPlt2.fill_between(halfedges, var1, var2, color='k', alpha=0.2)
-
-        [var1, var2] = np.nanpercentile(nhead_fullGamma[:, :, 1], [25, 75], axis=0)
-        gammaFullPlt2.fill_between(fulledges, var1, var2, color='k', alpha=0.2)
 
     return headingfig, nhead_fullGamma[:, :, 0]
 
