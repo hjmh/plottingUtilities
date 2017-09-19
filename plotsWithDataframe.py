@@ -161,6 +161,77 @@ def oneDimResidencyWithVar_df(radResPlt, FODataframe, flyIDs, keyind_xPos, keyin
     return radResPlt
 
 
+# 1D (radial) residency histograms ..................................................................................
+
+def oneDimResidencyWithVar_2LM_df(radResFig, FODataframe, flyIDs, trialNames, keyind_distLM1, keyind_distML2,
+                                  movementFilter, numBins, histMin, histMax, lineAlpha, varstyle, LMcols, LMnames):
+    numFlies = len(flyIDs)
+    numLM = len(LMnames)
+    # 0-LM1, 1-LM2
+
+    keyind_LMs = (keyind_distLM1, keyind_distML2)
+
+    for trial, cond in enumerate(trialNames):
+        radResPlt = radResFig.add_subplot(1, len(trialNames), trial + 1)
+        legendhand = []
+
+        for LM in range(numLM):
+            trialRadRes = np.zeros((numFlies, numBins[LM] - 1))
+
+            # normalisation factor for circle area rings
+            areaNormA = np.square(np.linspace(histMin[LM], histMax[LM], numBins[LM])) * np.pi
+            areaNorm = areaNormA[1:] - areaNormA[:-1]
+
+            for fly in range(numFlies):
+                querystring = '(trialtype=="' + cond + '") & (' + movementFilter + ') & (flyID=="' + flyIDs[fly] + '")'
+
+                distLM = np.asarray(FODataframe.query(querystring).iloc[:, keyind_LMs[LM]:keyind_LMs[LM] + 1]).squeeze()
+
+                radresidency, edges = np.histogram(distLM, bins=numBins[LM] - 1, range=(histMin[LM], histMax[LM]))
+                trialRadRes[fly, :] = radresidency / areaNorm
+
+                jitterRange = 0.2 * (histMax[LM] - histMin[LM]) / numBins[LM]
+
+                if varstyle == 'dotplot':
+                    toplot = radresidency / areaNorm
+
+                    radResPlt.plot(edges[:-1] + np.diff(edges) / 2.0 + np.random.uniform(-jitterRange, jitterRange),
+                                   toplot,
+                                   color=LMcols[LM], linestyle='none', marker='.', alpha=0.5)
+
+            if varstyle == 'std':
+                toplot = np.nanmean(trialRadRes, 0)
+                var1 = toplot + np.nanstd(trialRadRes, 0)
+                var2 = toplot - np.nanstd(trialRadRes, 0)
+            elif varstyle == 'iqr':
+                toplot = np.nanmedian(trialRadRes, 0)
+                [var1, var2] = np.nanpercentile(trialRadRes, [25, 75], axis=0)
+            else:
+                toplot = np.nanmean(trialRadRes, 0)
+
+            if varstyle != 'dotplot':
+                lhand, = radResPlt.plot(edges[:-1] + np.diff(edges) / 2.0, toplot, color=LMcols[LM], alpha=lineAlpha,
+                                        linewidth=3)
+                radResPlt.plot(edges[:-1] + np.diff(edges) / 2.0, var1, color=LMcols[LM], alpha=lineAlpha, linewidth=1)
+                radResPlt.plot(edges[:-1] + np.diff(edges) / 2.0, var2, color=LMcols[LM], alpha=lineAlpha, linewidth=1)
+
+                radResPlt.fill_between(edges[:-1] + np.diff(edges) / 2.0, var1, var2, color=LMcols[LM], alpha=0.2)
+            else:
+                lhand, = radResPlt.plot(edges[:-1] + np.diff(edges) / 2.0, toplot, color=LMcols[LM], alpha=lineAlpha,
+                                        linewidth=3)
+
+            legendhand.append(lhand)
+
+        plt.legend(legendhand, LMnames, loc='best', fontsize=12)
+        radResPlt.set_ylim(0, 3.5)
+        myAxisTheme(radResPlt)
+        radResPlt.set_xlabel('Landmark distance [mm]', fontsize=12)
+        if trial:
+            radResPlt.set_ylabel('Area corrected residency [count/mm^2]', fontsize=12)
+
+    return radResFig
+
+
 # Turn count vs. radial distance (from object / arena center) ..........................................................
 
 def getTurnCounts(selectpts, allturns, leftturns, rightturns, objDist, nBins, histDRange):
