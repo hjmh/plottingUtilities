@@ -15,7 +15,7 @@ import matplotlib.patches as patches
 import matplotlib.colors as colors
 from matplotlib import gridspec
 
-from basicPlotting import myAxisTheme
+from basicPlotting import myAxisTheme, _myAccentList
 
 
 def plotBodyAngle(ax, x, y, angle, markerColor, alphaVal, arrowScale):
@@ -38,9 +38,14 @@ def plotBodyVector(ax, x, y, vector, markerColor, alphaVal, arrowScale):
 
 
 def plotPosInRange(ax1, ax2, frameRange, time, xPos, yPos, angle, currCmap, arrowScale, alphaValue, markerSize):
-
-    cNorm  = colors.Normalize(vmin=-0.3*len(frameRange), vmax=1*len(frameRange))
-    scalarMap = plt.cm.ScalarMappable(norm=cNorm, cmap=currCmap)
+    
+    if currCmap == 'Accent':
+        cNorm  = colors.Normalize(vmin=-0.3*len(frameRange), vmax=1*len(frameRange))
+        mycmap = colors.LinearSegmentedColormap.from_list('myAccent',_myAccentList, N=256, gamma=1.0)
+        scalarMap = plt.cm.ScalarMappable(norm=cNorm,cmap=mycmap)
+    else:
+        cNorm  = colors.Normalize(vmin=-0.3*len(frameRange), vmax=1*len(frameRange))
+        scalarMap = plt.cm.ScalarMappable(norm=cNorm, cmap=currCmap)
 
     for ind, frame in enumerate(frameRange):
         currCol=scalarMap.to_rgba(ind)
@@ -64,8 +69,14 @@ def plotPosInRange(ax1, ax2, frameRange, time, xPos, yPos, angle, currCmap, arro
 
 def plotPosInRangeMultifly(ax, frameRange, xPos, yPos, angle, flyID, fly, currCmap, imagePx):
     # Plot trajectories of multi-fly tracking data (obtained with Ctrax)
-    cNorm  = colors.Normalize(vmin=-0.5*len(frameRange), vmax=1*len(frameRange))
-    scalarMap = plt.cm.ScalarMappable(norm=cNorm, cmap=currCmap)
+    
+    if currCmap == 'Accent':
+        cNorm  = colors.Normalize(vmin=-0.3*len(frameRange), vmax=1*len(frameRange))
+        mycmap = colors.LinearSegmentedColormap.from_list('myAccent',_myAccentList, N=256, gamma=1.0)
+        scalarMap = plt.cm.ScalarMappable(norm=cNorm,cmap=mycmap)
+    else:
+        cNorm  = colors.Normalize(vmin=-0.5*len(frameRange), vmax=1*len(frameRange))
+        scalarMap = plt.cm.ScalarMappable(norm=cNorm, cmap=currCmap)
 
     for ind, frame in enumerate(frameRange):
         currCol = scalarMap.to_rgba(len(frameRange) - ind)
@@ -105,8 +116,9 @@ def plotActiveSegments(activeFragments, frameRange, subplt, titleString, xPos, y
     flyRange = range(min(activeFragments), max(activeFragments) + 1)
 
     cNorm = colors.Normalize(vmin=min(activeFragments), vmax=max(activeFragments + 1))
-    scalarMap = plt.cm.ScalarMappable(norm=cNorm, cmap='Accent')
-
+    mycmap = colors.LinearSegmentedColormap.from_list('myAccent',_myAccentList, N=256, gamma=1.0)
+    scalarMap = plt.cm.ScalarMappable(norm=cNorm,cmap=mycmap)
+    
     arrowScale = 30
 
     for currFly in flyRange:
