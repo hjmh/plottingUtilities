@@ -7,7 +7,43 @@ __author__ = 'Hannah Haberkern, hjmhaberkern@gmail.com'
 import numpy as np
 import matplotlib.pyplot as plt
 
-def prettyBoxPlot(bpPlt, myBoxCols, objtype, myObjVals, flyIDs, offsets, plotLabels):
+# Set path to analysis code directory
+codeDir = sep.join(getcwd().split(sep)[:-2])
+path.insert(1, codeDir)
+
+from basicPlotting import myAxisTheme
+
+
+def countvisits(dist2Obj, visitRad):
+    inside = (dist2Obj < visitRad).astype('int')
+    time = np.linspace(0, 600, len(dist2Obj))
+
+    entries = np.zeros(len(inside))
+    entries[1:] = np.diff(inside) == 1
+
+    exits = np.zeros(len(inside))
+    exits[1:] = np.diff(inside) == -1
+
+    # check if no entries and/or no exits
+    if len(inside) == 0 or sum(np.diff(inside) == -1) < 1:
+        visitT = entryTime = exitTime = np.nan
+        return entries, exits, visitT, entryTime, exitTime
+
+    entryTime = time[entries.astype('bool')]
+    exitTime = time[exits.astype('bool')]
+
+    if len(entryTime) == len(exitTime):
+        visitT = exitTime - entryTime
+    else:
+        visitT = exitTime[0:min(sum(exits), sum(entries)).astype('int')] - entryTime[
+                                                                           0:min(sum(exits), sum(entries)).astype(
+                                                                               'int')]
+
+    return entries, exits, visitT, entryTime, exitTime
+
+
+
+def prettyBoxPlot(bpPlt, myBoxCols, objtype, myObjVals, flyIDs, offsets, trialName, plotLabels):
     # myObjVals should be e.g. VisitCount[objtype], myBoxCols should be objBoxColors[objtype]
 
     boxs = bpPlt.boxplot(myObjVals, patch_artist=True)
@@ -28,9 +64,12 @@ def prettyBoxPlot(bpPlt, myBoxCols, objtype, myObjVals, flyIDs, offsets, plotLab
     for fly in range(len(flyIDs)):
         if len(offsets) < 3:
             trialOffSets = np.vstack((0 + jitter[fly] + offsets[0], 1 + jitter[fly] + offsets[1]))
-        else:
+        elif len(offsets) == 3:
             trialOffSets = np.vstack((np.vstack((0 + jitter[fly] + offsets[0], 1 + jitter[fly] + offsets[1])),
                                       2 + jitter[fly] + offsets[2]))
+        else:
+            trialOffSets = np.arange(len(offsets))+offsets+jitter[fly]
+
         bpPlt.plot(trialOffSets, myObjVals[fly, :], '-', color='grey', linewidth=0.5, alpha=linealpha)
 
         if plotLabels:
