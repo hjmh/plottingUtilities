@@ -90,6 +90,27 @@ def prettyBoxPlot(bpPlt, myBoxCols, boxalpha, linealpha, myObjVals, flyIDs, offs
     return bpPlt
 
 
+def simpleBoxPlot(bpPlt, myBoxCols, boxalpha, linealpha, myObjVals, flyIDs, trialName):
+    boxs = bpPlt.boxplot(myObjVals, patch_artist=True)
+    plt.setp(boxs['whiskers'], color='black', linestyle='-')
+    plt.setp(boxs['medians'], color='black', linewidth=2)
+    plt.setp(boxs['fliers'], color='grey', marker='+')
+
+    for ind, box in enumerate(boxs['boxes']):
+        plt.setp(box, color=myBoxCols[ind], linewidth=1.5, alpha=boxalpha)
+        boxprops = dict(linestyle='-', linewidth=1.5, color='grey')
+
+    for fly in range(len(flyIDs)):
+        bpPlt.plot(np.arange(len(trialName)) + 1, myObjVals[fly, :], '-', color='grey', linewidth=0.5, alpha=linealpha)
+
+    bpPlt.set_xticklabels(trialName)
+    bpPlt.axhline(y=0, linewidth=1, color='grey', linestyle='dashed')
+    bpPlt.set_ylim((-0.1 * np.max(myObjVals), (0.1 * np.max(myObjVals)) + np.max(myObjVals)))
+    myAxisTheme(bpPlt)
+
+    return bpPlt
+
+
 def diffCorrPlot(bpPlt, prePostDiffVals, flyIDs, dotcol):
     from scipy.stats.stats import pearsonr
 
