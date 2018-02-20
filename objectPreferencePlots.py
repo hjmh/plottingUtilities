@@ -5,6 +5,11 @@ Plots visualising relative preferences for certain landmarks in a multi-landmark
 __author__ = 'Hannah Haberkern, hjmhaberkern@gmail.com'
 
 import numpy as np
+
+from os import getcwd
+from os.path import sep
+from sys import path
+
 import matplotlib.pyplot as plt
 
 # Set path to analysis code directory
@@ -42,8 +47,7 @@ def countvisits(dist2Obj, visitRad):
     return entries, exits, visitT, entryTime, exitTime
 
 
-
-def prettyBoxPlot(bpPlt, myBoxCols, objtype, myObjVals, flyIDs, offsets, trialName, plotLabels):
+def prettyBoxPlot(bpPlt, myBoxCols, boxalpha, linealpha, myObjVals, flyIDs, offsets, trialName, plotLabels):
     # myObjVals should be e.g. VisitCount[objtype], myBoxCols should be objBoxColors[objtype]
 
     boxs = bpPlt.boxplot(myObjVals, patch_artist=True)
