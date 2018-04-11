@@ -19,7 +19,7 @@ codeDir = sep.join(getcwd().split(sep)[:-2])
 path.insert(1, codeDir)
 
 from trajectoryAnalysis.trajectoryDerivedParams import cartesian2polar
-from basicPlotting import myAxisTheme
+from .basicPlotting import myAxisTheme
 
 
 # Modulation of runs ..........................................................................................
@@ -224,7 +224,7 @@ def oneDimResidencyWithVar_df(radResPlt, FODataframe, flyIDs, keyind_xPos, keyin
 
 def lineHistogram(ax, histRange, yVals, xlab, ylab, lineCol, densityFlag, nBins):
     n, edges = np.histogram(yVals, normed=densityFlag, density=densityFlag, range=histRange, bins=nBins)
-    edges = edges[:-1]
+    edges = edges[:-1] + np.diff(edges)/2
     ax.plot(edges, n, color=lineCol, linewidth=1.5)
     
     ax.set_xlim(histRange)

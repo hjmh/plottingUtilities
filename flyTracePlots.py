@@ -15,7 +15,7 @@ import matplotlib.patches as patches
 import matplotlib.colors as colors
 from matplotlib import gridspec
 
-from basicPlotting import myAxisTheme, _myAccentList
+from .basicPlotting import myAxisTheme, _myAccentList
 
 
 def plotBodyAngle(ax, x, y, angle, markerColor, alphaVal, arrowScale):
