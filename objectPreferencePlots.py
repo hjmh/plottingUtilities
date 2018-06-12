@@ -50,7 +50,10 @@ def countvisits(dist2Obj, visitRad):
 def prettyBoxPlot(bpPlt, myBoxCols, boxalpha, linealpha, myObjVals, flyIDs, offsets, trialName, plotLabels):
     # myObjVals should be e.g. VisitCount[objtype], myBoxCols should be objBoxColors[objtype]
 
-    boxs = bpPlt.boxplot(myObjVals, patch_artist=True)
+    mask = ~np.isnan(myObjVals)
+    filt_myObjVals = [d[m] for d, m in zip(myObjVals.T, mask.T)]
+
+    boxs = bpPlt.boxplot(filt_myObjVals, patch_artist=True)
     plt.setp(boxs['whiskers'], color='black', linestyle='-')
     plt.setp(boxs['medians'], color='black', linewidth=2)
     plt.setp(boxs['fliers'], color='grey', marker='+')
@@ -72,7 +75,7 @@ def prettyBoxPlot(bpPlt, myBoxCols, boxalpha, linealpha, myObjVals, flyIDs, offs
             trialOffSets = np.vstack((np.vstack((0 + jitter[fly] + offsets[0], 1 + jitter[fly] + offsets[1])),
                                       2 + jitter[fly] + offsets[2]))
         else:
-            trialOffSets = np.arange(len(offsets))+offsets+jitter[fly]
+            trialOffSets = np.arange(len(offsets)) + offsets + jitter[fly]
 
         bpPlt.plot(trialOffSets, myObjVals[fly, :], '-', color='grey', linewidth=0.5, alpha=linealpha)
 
@@ -84,7 +87,7 @@ def prettyBoxPlot(bpPlt, myBoxCols, boxalpha, linealpha, myObjVals, flyIDs, offs
     else:
         plt.xticks(range(1, len(trialName) + 1), trialName)
     bpPlt.axhline(y=0, linewidth=1, color='grey', linestyle='dashed')
-    bpPlt.set_ylim((-0.1 * np.max(myObjVals), (0.1 * np.max(myObjVals)) + np.max(myObjVals)))
+    bpPlt.set_ylim((-0.1 * np.nanmax(myObjVals), (0.1 * np.nanmax(myObjVals)) + np.nanmax(myObjVals)))
     myAxisTheme(bpPlt)
 
     return bpPlt
@@ -105,7 +108,7 @@ def simpleBoxPlot(bpPlt, myBoxCols, boxalpha, linealpha, myObjVals, flyIDs, tria
 
     bpPlt.set_xticklabels(trialName)
     bpPlt.axhline(y=0, linewidth=1, color='grey', linestyle='dashed')
-    bpPlt.set_ylim((-0.1 * np.max(myObjVals), (0.1 * np.max(myObjVals)) + np.max(myObjVals)))
+    bpPlt.set_ylim((-0.1 * np.nanmax(myObjVals), (0.1 * np.nanmax(myObjVals)) + np.nanmax(myObjVals)))
     myAxisTheme(bpPlt)
 
     return bpPlt
@@ -115,18 +118,20 @@ def diffCorrPlot(bpPlt, prePostDiffVals, flyIDs, dotcol):
     from scipy.stats.stats import pearsonr
 
     bpPlt.scatter(prePostDiffVals[:, 0], prePostDiffVals[:, 1], s=30, facecolor=dotcol)
-    for fly in range(len(flyIDs)):
-        bpPlt.text(prePostDiffVals[fly, 0] + 0.03, prePostDiffVals[fly, 1] + 0.03, flyIDs[fly])
 
-    rsq, p = pearsonr(prePostDiffVals[:, 0], prePostDiffVals[:, 1])
+    if np.sum(np.isnan(VisitLength[0])) == 0:
+        for fly in range(len(flyIDs)):
+            bpPlt.text(prePostDiffVals[fly, 0] + 0.03, prePostDiffVals[fly, 1] + 0.03, flyIDs[fly])
+
+            # rsq, p = pearsonr(prePostDiffVals[:, 0], prePostDiffVals[:, 1])
     bpPlt.set_xlabel('Delta pre')
     bpPlt.set_ylabel('Delta post')
     bpPlt.axhline(y=0, linewidth=1, color='grey', linestyle='dashed')
     bpPlt.axvline(x=0, linewidth=1, color='grey', linestyle='dashed')
-    minplt = -0.5 + np.min(prePostDiffVals)
-    maxplt = 0.5 + np.max(prePostDiffVals)
+    minplt = -0.5 + np.nanmin(prePostDiffVals)
+    maxplt = 0.5 + np.nanmax(prePostDiffVals)
     bpPlt.plot([minplt, maxplt], [minplt, maxplt], linewidth=1, color=dotcol, alpha=0.3)
-    bpPlt.set_title('correlation: PCC=' + str(round(rsq, 4)) + ', p=' + str(round(p, 4)))
+    # bpPlt.set_title('correlation: PCC=' + str(round(rsq, 4)) + ', p=' + str(round(p, 4)))
     bpPlt.set_xlim((minplt, maxplt))
     bpPlt.set_ylim((minplt, maxplt))
     myAxisTheme(bpPlt)
