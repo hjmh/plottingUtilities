@@ -19,9 +19,17 @@ path.insert(1, codeDir)
 from basicPlotting import myAxisTheme
 
 
-def countvisits(dist2Obj, visitRad):
+def landmarksInSquareTile(ax, LMcoords, LMcols):
+    markers = ['^','s']
+    for lm in range(2):
+        for obj in range(2):
+            ax.plot(LMcoords[lm][obj][0], LMcoords[lm][obj][1], marker=markers[lm], markersize=8, alpha=0.8, color=LMcols[lm])
+    myAxisTheme(ax)
+    ax.set_aspect('equal')
+
+
+def countvisits(dist2Obj, time, visitRad):
     inside = (dist2Obj < visitRad).astype('int')
-    time = np.linspace(0, 600, len(dist2Obj))
 
     entries = np.zeros(len(inside))
     entries[1:] = np.diff(inside) == 1
@@ -92,6 +100,44 @@ def prettyBoxPlot(bpPlt, myBoxCols, boxalpha, linealpha, myObjVals, flyIDs, offs
 
     return bpPlt
 
+def prettyBoxPlot_tele(bpPlt, myBoxCols, boxalpha, linealpha, myObjVals, flyIDs, offsets, trialName, plotLabels):
+    # myObjVals should be e.g. VisitCount[objtype], myBoxCols should be objBoxColors[objtype]
+    # assume 2 trials
+
+    mask = ~np.isnan(myObjVals)
+    filt_myObjVals = [d[m] for d, m in zip(myObjVals.T, mask.T)]
+
+    boxs = bpPlt.boxplot(filt_myObjVals, patch_artist=True)
+    plt.setp(boxs['whiskers'], color='black', linestyle='-')
+    plt.setp(boxs['medians'], color='black', linewidth=2)
+    plt.setp(boxs['fliers'], color='grey', marker='+')
+
+    jitter = np.random.normal(0, 0.012 * len(offsets), size=len(myObjVals[:, 0]))
+
+    for ind, box in enumerate(boxs['boxes']):
+        plt.setp(box, color=myBoxCols[ind], linewidth=1.5, alpha=boxalpha)
+        boxprops = dict(linestyle='-', linewidth=1.5, color='grey')
+
+        # Add some random "jitter" to the x-axis
+        x = ind + jitter + offsets[ind]
+        bpPlt.plot(x, myObjVals[:, ind], 'o', color=myBoxCols[ind], alpha=0.8)
+
+    for fly in range(len(flyIDs)):
+        trialOffSets = np.vstack((0 + jitter[fly] + offsets[0], 1 + jitter[fly] + offsets[1]))
+        
+        bpPlt.plot(trialOffSets, myObjVals[fly, :], '-', color='grey', linewidth=0.5, alpha=linealpha)
+
+        if plotLabels:
+            bpPlt.text(len(offsets) - .91 + jitter[fly] + offsets[-1], myObjVals[fly, -1], flyIDs[fly])
+
+
+        plt.xticks(range(1, len(trialName) + 1), trialName)
+    bpPlt.axhline(y=0, linewidth=1, color='grey', linestyle='dashed')
+    bpPlt.set_ylim((-0.1 * np.nanmax(myObjVals), (0.1 * np.nanmax(myObjVals)) + np.nanmax(myObjVals)))
+    myAxisTheme(bpPlt)
+
+    return bpPlt
+
 
 def simpleBoxPlot(bpPlt, myBoxCols, boxalpha, linealpha, myObjVals, flyIDs, trialName):
     boxs = bpPlt.boxplot(myObjVals, patch_artist=True)
@@ -119,7 +165,7 @@ def diffCorrPlot(bpPlt, prePostDiffVals, flyIDs, dotcol):
 
     bpPlt.scatter(prePostDiffVals[:, 0], prePostDiffVals[:, 1], s=30, facecolor=dotcol)
 
-    if np.sum(np.isnan(VisitLength[0])) == 0:
+    if np.sum(np.isnan(prePostDiffVals)) == 0:
         for fly in range(len(flyIDs)):
             bpPlt.text(prePostDiffVals[fly, 0] + 0.03, prePostDiffVals[fly, 1] + 0.03, flyIDs[fly])
 
