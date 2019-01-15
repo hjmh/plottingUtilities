@@ -70,8 +70,66 @@ def oneDimResidency_df(radResPlt, FODataframe, keyind_xPos, keyind_yPos, movemen
     return radResPlt
 
 
-def oneDimResidencyWithVar_df(radResPlt, FODataframe, flyIDs, keyind_xPos, keyind_yPos, movementFilter, visState,
-                              numBins, histRange, lineAlpha, plotLog, varstyle, fill, condLegend):
+def oneDimResidencyWithVar_df(radResPlt, resdf, flyIDs, movementFilter, numBins, histRange, lineAlpha,
+                              plotLog, varstyle, fill, condCol, condLegend):
+    # normalisation factor for cirle area rings
+    areaNormA = np.square(np.linspace(histRange[0], histRange[1], numBins + 1)) * np.pi
+    areaNorm = areaNormA[1:] - areaNormA[:-1]
+
+    numFlies = len(flyIDs)
+    legendhand = []
+
+    for i, cond in enumerate(condLegend):
+        trialRadRes = np.zeros((numFlies, numBins))
+        for fly in range(numFlies):
+            querystring = '(condition == "' + cond + '")&(' + movementFilter \
+                          + ')&(flyID == "' + flyIDs[fly] + '")'
+
+            objDist = np.asarray(resdf.query(querystring)['dist2LM']).squeeze()
+
+            radresidency, edges = np.histogram(objDist, bins=numBins, range=histRange)
+            trialRadRes[fly, :] = radresidency / areaNorm
+
+            jitterRange = 0.2 * np.diff(histRange) / numBins
+
+        if plotLog:
+            if varstyle == 'std':
+                toplot = np.log(np.nanmean(trialRadRes, 0))
+                var1 = np.log(np.nanmean(trialRadRes, 0) + np.nanstd(trialRadRes, 0))
+                var2 = np.log(np.nanmean(trialRadRes, 0) - np.nanstd(trialRadRes, 0))
+            elif varstyle == 'iqr':
+                toplot = np.log(np.nanmedian(trialRadRes, 0))
+                [var1, var2] = np.log(np.nanpercentile(trialRadRes, [25, 75], axis=0))
+        else:
+            if varstyle == 'std':
+                toplot = np.nanmean(trialRadRes, 0)
+                var1 = toplot + np.nanstd(trialRadRes, 0)
+                var2 = toplot - np.nanstd(trialRadRes, 0)
+            elif varstyle == 'iqr':
+                toplot = np.nanmedian(trialRadRes, 0)
+                [var1, var2] = np.nanpercentile(trialRadRes, [25, 75], axis=0)
+
+        lhand, = radResPlt.plot(edges[:-1] + np.diff(edges) / 2.0, toplot, color=condCol[i],
+                                alpha=lineAlpha, linewidth=3)
+        radResPlt.plot(edges[:-1] + np.diff(edges) / 2.0, var1, color=condCol[i], alpha=lineAlpha, linewidth=1)
+        radResPlt.plot(edges[:-1] + np.diff(edges) / 2.0, var2, color=condCol[i], alpha=lineAlpha, linewidth=1)
+
+        if fill:
+            radResPlt.fill_between(edges[:-1] + np.diff(edges) / 2.0, var1, var2, color=condCol[i], alpha=0.2)
+        legendhand.append(lhand)
+
+    plt.legend(legendhand, condLegend, loc='best', fontsize=12)
+    radResPlt.set_xlabel('Landmark distance [mm]', fontsize=12)
+    if plotLog:
+        radResPlt.set_ylabel('log(area corrected residency)', fontsize=12)
+    else:
+        radResPlt.set_ylabel('Area corrected residency', fontsize=12)
+
+    return radResPlt
+
+
+def oneDimResidencyWithVarVisstate_df(radResPlt, FODataframe, flyIDs, keyind_xPos, keyind_yPos, movementFilter,
+                                      visState, numBins, histRange, lineAlpha, plotLog, varstyle, fill, condLegend):
 
     # normalisation factor for cirle area rings
     areaNormA = np.square(np.linspace(histRange[0], histRange[1], numBins))*np.pi

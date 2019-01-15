@@ -131,7 +131,7 @@ def residencyWithHistograms(xPosMAall, yPosMAall, movingall, arenaRad, numBins, 
 
 # 1D (radial) residency histograms ...........................................................................
 
-def oneDimResidencyWithVar_df(radResPlt, FODataframe, flyIDs, keyind_xPos, keyind_yPos, movementFilter, visState,
+def oneDimResidencyWithVar_df(radResPlt, FODataframe, flyIDs, movementFilter, minLMdist, visState,
                               numBins, histRange, lineAlpha, plotLog, varstyle, fill, condLegend):
     numFlies = len(flyIDs)
 
@@ -154,10 +154,10 @@ def oneDimResidencyWithVar_df(radResPlt, FODataframe, flyIDs, keyind_xPos, keyin
         trialRadRes = np.zeros((numFlies, numBins-1))
         for fly in range(numFlies):
             querystring = '(trialtype=="' + cond + '") & (trial==' + str(trial+1) + ') & (' + movementFilter\
-                          + ') & (flyID=="' + flyIDs[fly]+'")'
+                          + ') & (flyID=="' + flyIDs[fly]+'") & (LMdist > '+str(minLMdist)+')'
 
-            xPosMA = np.asarray(FODataframe.query(querystring).iloc[:, keyind_xPos:keyind_xPos+1]).squeeze()
-            yPosMA = np.asarray(FODataframe.query(querystring).iloc[:, keyind_yPos:keyind_yPos+1]).squeeze()
+            xPosMA = FODataframe.query(querystring)['xPosInMiniarena'].values.squeeze()
+            yPosMA = FODataframe.query(querystring)['yPosInMiniarena'].values.squeeze()
 
             # transform trajectory to polar coordinates
             objDist, theta = cartesian2polar(xPosMA, yPosMA)
@@ -224,14 +224,14 @@ def oneDimResidencyWithVar_df(radResPlt, FODataframe, flyIDs, keyind_xPos, keyin
 
 def lineHistogram(ax, histRange, yVals, xlab, ylab, lineCol, densityFlag, nBins):
     n, edges = np.histogram(yVals, normed=densityFlag, density=densityFlag, range=histRange, bins=nBins)
-    edges = edges[:-1] + np.diff(edges)/2
+    edges = edges[:-1] + np.diff(edges)/2.0
     ax.plot(edges, n, color=lineCol, linewidth=1.5)
-    
+
     ax.set_xlim(histRange)
     ax.set_xlabel(xlab)
     ax.set_ylabel(ylab)
     myAxisTheme(ax)
-    
+
     return ax, n, edges
 
 
@@ -247,46 +247,38 @@ def headingLineHist(ax, flyCol, edges, normedhead, curralpha, histRange, xlab):
 
 # Velo distributions figure ...................................................................................
 
-def plotWalkingVelocityDistr(FOAllFlies_df, flyIDs, keyind_mov, keyind_vT, keyind_vR, flyCMap, histRangeVT,
-                             histRangeVR,numBins, numFlies):
+def plotWalkingVelocityDistr(allFlies_df, flyIDs, flyCMap, histRangeVT, histRangeVR, numBins):
     walkingFig, axs = plt.subplots(2, 2, figsize=(10, 8))
-    verString = ['Normed ', '']
-    xString = ['', 'Time [s]']
-    
+    verString = ['Frequency', 'Count']
+    xString = ['Translational velocity [mm/s]', 'Rotational velocity [deg/s]']
+    numFlies = len(flyIDs)
+
     for ver, densityFlag in enumerate([True, False]):
-        
         histDat = np.zeros((2, numFlies, numBins))
-        
+
         for fly in range(numFlies):
-            querystring = '(flyID == "' + flyIDs[fly] + '")'
-            
-            flyMov = FOAllFlies_df.query(querystring).iloc[:,keyind_mov:keyind_mov+1].squeeze()
-            flyVT = FOAllFlies_df.query(querystring).iloc[:,keyind_vT:keyind_vT+1].squeeze()
-            flyVR = FOAllFlies_df.query(querystring).iloc[:,keyind_vR:keyind_vR+1].squeeze()
-            
+            flyMov = allFlies_df.query('(flyID == "' + flyIDs[fly] + '")')['moving'].values.squeeze()
+            flyVT = allFlies_df.query('(flyID == "' + flyIDs[fly] + '")')['transVelo'].values.squeeze()
+            flyVR = allFlies_df.query('(flyID == "' + flyIDs[fly] + '")')['rotVelo'].values.squeeze()
+
             # translational velocity
-            axs[ver, 0], n, edgevt = lineHistogram(axs[ver, 0], histRangeVT, flyVT[flyMov > 0], xString[ver],
-                                                  verString[ver] + 'Translational velocity [mm/s]',
-                                                  flyCMap.to_rgba(fly), densityFlag, numBins)
-                
+            axs[ver, 0], n, edgevt = lineHistogram(axs[ver, 0], histRangeVT, flyVT[flyMov > 0], xString[0],
+                                                  verString[ver], flyCMap.to_rgba(fly), densityFlag, numBins)
             histDat[0, fly, :] = n
-                                                  
+
             # rotational velocity
-            axs[ver, 1], n, edgevr = lineHistogram(axs[ver, 1], histRangeVR, flyVR[flyMov > 0], 'Time [s]',
-                                                  verString[ver] + 'Rotational velocity [deg/s]',
-                                                  flyCMap.to_rgba(fly), densityFlag, numBins)
+            axs[ver, 1], n, edgevr = lineHistogram(axs[ver, 1], histRangeVR, flyVR[flyMov > 0], xString[1],
+                                                  verString[ver], flyCMap.to_rgba(fly), densityFlag, numBins)
             histDat[1, fly, :] = n
-                                                  
+
             edges = [edgevt, edgevr]
-        
+
         for ind in range(2):
             axs[ver, ind].plot(edges[ind], np.nanmedian(histDat[ind, :, :], axis=0), color='k', linewidth=2)
-            
             [var1, var2] = np.nanpercentile(histDat[ind, :, :], [25, 75], axis=0)
             axs[ver, ind].fill_between(edges[ind], var1, var2, color='k', alpha=0.2)
-        
             axs[ver, 1].axvline(0, linestyle='dashed', color='grey', linewidth=2)
-            
+
     return walkingFig
 
 
@@ -310,8 +302,7 @@ def plotHeadingDistFromTimeseries(figax, headingts, densityFlag, rangevals, binv
     return figax, nhead/normFactor, edges[:-1]+np.diff(edges)/2
 
 
-def plotHeadingComparison(FOAllFlies_df, flyIDs, sceneName, titleString, keyind_gam, keyind_gamful, keyind_mov, flyCMap,
-                          densityFlag, plotIQR):
+def plotHeadingComparison(FOAllFlies_df, flyIDs, sceneName, minLMdist, titleString, flyCMap, densityFlag, plotIQR):
     halfBins = 18
     fullBins = 36
     alphaval = [1, 0.6]
@@ -330,10 +321,14 @@ def plotHeadingComparison(FOAllFlies_df, flyIDs, sceneName, titleString, keyind_
         for fly in range(numFlies):
             flyCol = flyCMap.to_rgba(fly)
             querystring = '(sceneName=="' + sceneName + '") & (flyID =="' + flyIDs[fly] + '")'
+            flydf = FOAllFlies_df.query(querystring)
+            if len(flydf) == 0: continue
+            if flydf['trialtype'].values[0] == 'plane':
+                flydf = flydf.query('LMdist > '+str(minLMdist))
 
-            moving = FOAllFlies_df.query(querystring).iloc[:, keyind_mov:keyind_mov + 1].squeeze()
-            gamma = FOAllFlies_df.query(querystring).iloc[:, keyind_gam:keyind_gam + 1].squeeze()
-            gammaFull = FOAllFlies_df.query(querystring).iloc[:, keyind_gamful:keyind_gamful + 1].squeeze()
+            moving = flydf['moving'].values.squeeze()
+            gamma = flydf['gamma'].values.squeeze()
+            gammaFull = flydf['gammaFull'].values.squeeze()
 
             if sum(moving) <= 0.2 * len(moving):
                 print('fly ' + str(flyIDs[fly]) + ' not moving')
@@ -395,6 +390,64 @@ def plotHeadingComparison(FOAllFlies_df, flyIDs, sceneName, titleString, keyind_
     headingfig.tight_layout()
 
     return headingfig, nhead_fullGamma[:, :, 0]
+
+
+def plot2DHeadingComparison(FOAllFlies_df, flyIDs, sceneName, minLMdist, titleString, flyCMap, densityFlag, plotIQR):
+    numFlies = len(flyIDs)
+
+    legendlist = []
+    fullBins = 36
+    minMov = 0.2
+    histRange = (-np.pi, np.pi)
+
+    nhead_angle = np.nan*np.ones((numFlies,fullBins))
+    nhead_gamma = np.nan*np.ones((numFlies,fullBins))
+
+    headingfig, axs = plt.subplots(1, 2, figsize=(10, 4))
+
+    for fly in range(numFlies):
+        querystring = '(sceneName=="' + sceneName + '") & (flyID =="' + flyIDs[fly] +  '")'
+
+        flydf = FOAllFlies_df.query(querystring)
+        if len(flydf) == 0: continue
+        if flydf['trialtype'].values[0] == 'plane':
+            flydf = flydf.query('LMdist > '+str(minLMdist))
+
+        moving = flydf['moving'].values.squeeze()
+        angle = flydf['headingAngle'].values.squeeze()
+        gammaFull = flydf['gammaFull'].values.squeeze()
+
+        if sum(moving)<=minMov*len(moving):
+            print('fly '+str(flyIDs[fly])+' not moving: '+  str(100.0*sum(moving)/max(1,len(moving))))
+            continue
+
+        if densityFlag:
+            ylab = 'frequency (when moving)'
+        else:
+            ylab = 'count (when moving)'
+
+        # rel. heading
+        axs[0], normgam, fulledges = plotHeadingDistFromTimeseries(axs[0], gammaFull[moving > 0], densityFlag,
+                                                histRange, fullBins, flyCMap.to_rgba(fly),'rel. heading', ylab, 1)
+        nhead_gamma[fly, :] = normgam
+
+        # abs. heading
+        axs[1], normang, fulledges = plotHeadingDistFromTimeseries(axs[1], angle[moving > 0], densityFlag,
+                                                histRange, fullBins, flyCMap.to_rgba(fly),'abs. heading', ylab, 1)
+        nhead_angle[fly,:] = normang
+
+    headingfig.suptitle(titleString,fontsize=13)
+    headingfig.tight_layout()
+
+    axs[0].plot(fulledges,np.nanmedian(nhead_gamma[:,:],0),color='k',linewidth=3)
+    axs[1].plot(fulledges,np.nanmedian(nhead_angle[:,:],0),color='k',linewidth=3)
+
+    if(plotIQR):
+        [var1,var2] = np.nanpercentile(nhead_gamma[:,:],[25,75],axis=0)
+        axs[0].fill_between(fulledges, var1, var2, color='k', alpha=0.2)
+        [var1,var2] = np.nanpercentile(nhead_angle[:,:],[25,75],axis=0)
+        axs[1].fill_between(fulledges, var1, var2, color='k', alpha=0.2)
+    return headingfig
 
 
 # Heading-object distance relationship .................................................................................
@@ -685,126 +738,3 @@ def make4ValuePolCoordPlot(relPolMeanFig, objDistanceall, gammaall, gammaFullall
     cb.ax.set_ylabel(titleString, rotation=270, fontsize=12)
 
     return relPolMeanFig
-
-
-# Curvature related plots ..............................................................................................
-
-def curvatureControlPlot(curv, xPos, yPos, sf, ef, rangeLimits, colormap):
-    # Cap extremes of curvature to gain dynamic range at values around zero
-    curvTH = 0.3
-    curvToPlot = np.copy(curv)
-    curvToPlot[curv > curvTH] = curvTH
-    curvToPlot[curv < -curvTH] = -curvTH
-
-    curvControlFig = plt.figure(figsize=(10, 10))
-    ax = curvControlFig.add_subplot(111)
-    plt.scatter(xPos[sf:ef], yPos[sf:ef], s=25, c=curvToPlot[sf:ef], cmap=colormap, marker='o', edgecolors='none')
-    plt.xlim(rangeLimits)
-    plt.ylim(rangeLimits)
-    ax.set_aspect('equal')
-
-    myAxisTheme(ax)
-
-    return curvControlFig
-
-
-def curvatureVsHeading_DistanceScatterplot(curvature, gammaFull, objDist):
-    curvScatterPlot = plt.figure(figsize=(15, 12))
-    gs = gridspec.GridSpec(2, 1, height_ratios=[2, 1.4])
-
-    ax0 = curvScatterPlot.add_subplot(gs[0])
-    plt.scatter(gammaFull, curvature, c=objDist, s=60-objDist, marker='.', alpha=0.8,
-                edgecolors='none', cmap='Spectral')
-    plt.xlim(-np.pi, np.pi)
-    plt.ylim(-0.3, 0.3)
-
-    ax1 = curvScatterPlot.add_subplot(gs[1])
-    plt.scatter(gammaFull, curvature, c=objDist, s=objDist, marker='.', alpha=0.8, edgecolors='none', cmap='Spectral')
-    plt.xlim(-np.pi, np.pi)
-    plt.ylim(-0.15, 0.15)
-
-    ax0.axvline(-120*(np.pi/180), linestyle='--', color='grey', alpha=0.8)
-    ax0.axvline(120*(np.pi/180), linestyle='--', color='grey', alpha=0.8)
-    ax1.axvline(-120*(np.pi/180), linestyle='--', color='grey', alpha=0.8)
-    ax1.axvline(120*(np.pi/180), linestyle='--', color='grey', alpha=0.8)
-
-    ax0.axhline(0, linestyle='-', color='black', alpha=0.5)
-    ax1.axhline(0, linestyle='-', color='black', alpha=0.5)
-
-    myAxisTheme(ax0)
-    myAxisTheme(ax1)
-
-    return
-
-
-def curvatureVsHeading_DistanceBoxplot(curvature, gammaFull, objDist, nGammaBins, nDistBins, arenaRad, titleString):
-    # Bin values w.r.t distance from object and subsequently w.r.t. heading angle
-    # Then generate box plot with nGammaBins for each distance bin
-    # nGammaBins = 18
-    # nDistBins = 3
-    gammaBins = np.linspace(-np.pi, np.pi, nGammaBins+1)
-    gammaBins = gammaBins[1:]
-
-    nBinOutOfFOV = (180-120)/(360/nGammaBins)
-    nBinInFOV = nGammaBins - 2*nBinOutOfFOV
-
-    distBins = np.linspace(0, arenaRad, nDistBins+1)
-    distBins = distBins[1:]
-
-    curvDigitized = []
-    gammaFullDigitized = []
-
-    cmap = plt.cm.get_cmap('Accent')
-    colors = np.zeros((nDistBins, 4))
-    outcolor = [0.5,  0.5,  0.5,  1]
-
-    binInd = np.digitize(objDist, distBins)
-
-    for i in range(nDistBins):
-        curvDigitized.append(curvature[binInd == i])
-        gammaFullDigitized.append(gammaFull[binInd == i])
-        colors[i] = cmap(float(i)/nDistBins)
-
-    curvBoxPlot=plt.figure(figsize=(8, 11))
-    curvBoxPlot.suptitle(titleString, fontsize=13)
-
-    for distLevel in range(nDistBins):
-        curvDoubleDigitized = []
-        curvDigitizedMedian = np.zeros(nGammaBins)
-        binInd = np.digitize(gammaFullDigitized[distLevel], gammaBins)
-
-        for i in range(nGammaBins):
-            curvDoubleDigitized.append(curvDigitized[distLevel][binInd == i])
-            curvDigitizedMedian[i] = np.median(curvDigitized[distLevel][binInd == i])
-
-        outcolorList = np.reshape(np.repeat(outcolor, nBinOutOfFOV), (4, nBinOutOfFOV)).transpose()
-        incolorList = np.reshape(np.repeat(colors[distLevel], nBinInFOV), (4, nBinInFOV)).transpose()
-        colorList = np.vstack((outcolorList, incolorList, outcolorList))
-
-        ax = curvBoxPlot.add_subplot(nDistBins, 1, distLevel+1)
-        for g in range(nGammaBins):
-            y = curvDoubleDigitized[g]
-            # Add some random "jitter" to the x-axis
-            x = np.random.normal(g+1, 0.06, size=len(y))
-            plt.plot(x, y, '.', color=colorList[g], alpha=1, markersize=5)
-
-        box = ax.boxplot(curvDoubleDigitized, notch=True, patch_artist=True)
-        plt.setp(box['boxes'], alpha=0.6, edgecolor='black')
-        plt.setp(box['whiskers'], color='black', linewidth=1, linestyle='-')
-        plt.setp(box['caps'], color='black', linewidth=1, linestyle='-')
-        for patch, color in zip(box['boxes'], colorList):
-            patch.set_facecolor(color)
-        ax.set_ylabel(str(int(distBins[distLevel]-np.mean(np.diff(distBins)))) + '-'
-                      + str(int(distBins[distLevel])) + ' mm\n' + 'curvature [1/mm]')
-        plt.xticks(range(1, len(gammaBins)+1),
-                   np.round((gammaBins - np.mean(np.diff(gammaBins))/2)*180/np.pi, 2),
-                   rotation=40)
-        ax.plot(range(1, len(gammaBins)+1), curvDigitizedMedian, color='black', alpha=0.8)
-        ax.set_ylim(-0.25, 0.25)
-        ax.axhline(0, color='black', linewidth=1, linestyle='--')
-
-        myAxisTheme(ax)
-
-    ax.set_xlabel('heading relative to object [deg]')
-
-    return curvBoxPlot
