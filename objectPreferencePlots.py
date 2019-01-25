@@ -33,17 +33,18 @@ def countvisits(dist2Obj, time, visitRad):
 
     entries = np.zeros(len(inside))
     entries[1:] = np.diff(inside) == 1
-
+    entries = entries.astype('bool')
     exits = np.zeros(len(inside))
     exits[1:] = np.diff(inside) == -1
+    exits = exits.astype('bool')
 
     # check if no entries and/or no exits
     if len(inside) == 0 or sum(np.diff(inside) == -1) < 1:
         visitT = entryTime = exitTime = np.nan
         return entries, exits, visitT, entryTime, exitTime
 
-    entryTime = time[entries.astype('bool')]
-    exitTime = time[exits.astype('bool')]
+    entryTime = time[entries]
+    exitTime = time[exits]
 
     if len(entryTime) == len(exitTime):
         visitT = exitTime - entryTime
@@ -124,7 +125,7 @@ def prettyBoxPlot_tele(bpPlt, myBoxCols, boxalpha, linealpha, myObjVals, flyIDs,
 
     for fly in range(len(flyIDs)):
         trialOffSets = np.vstack((0 + jitter[fly] + offsets[0], 1 + jitter[fly] + offsets[1]))
-        
+
         bpPlt.plot(trialOffSets, myObjVals[fly, :], '-', color='grey', linewidth=0.5, alpha=linealpha)
 
         if plotLabels:
